@@ -8,7 +8,9 @@ export async function initAuth() {
     const { data: { session } } = await supabase.auth.getSession()
     currentUser = session?.user || null
   } catch (error) {
-    console.error('Auth initialization error:', error)
+    console.warn('Auth initialization error (this is normal if Supabase is not configured):', error.message)
+    // Don't throw error, allow app to continue
+    currentUser = null
   }
 }
 

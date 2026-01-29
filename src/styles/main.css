@@ -103,3 +103,76 @@ footer {
   border-color: #b6d4fe;
   color: #084298;
 }
+
+/* Calendar styles */
+.calendar-week {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+
+.calendar-day {
+  background-color: #f8f9fa;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid #dee2e6;
+}
+
+.time-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.time-slot {
+  font-size: 0.85rem;
+  padding: 0.4rem 0.5rem;
+  white-space: nowrap;
+}
+
+.time-slot:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Doctor list styles */
+.doctor-item {
+  border-left: 3px solid transparent;
+  transition: all 0.2s;
+}
+
+.doctor-item:hover {
+  background-color: #f8f9fa;
+  border-left-color: #0d6efd;
+}
+
+.doctor-item.active {
+  background-color: #e7f3ff;
+  border-left-color: #0d6efd;
+  font-weight: 600;
+}
+
+/* Form styles */
+.form-control:focus {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* User panel styles */
+#user-panel .card-body {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+#user-panel .card-body h5,
+#user-panel .card-body p {
+  color: white;
+}
+
+/* Responsive calendar */
+@media (max-width: 768px) {
+  .calendar-week {
+    grid-template-columns: 1fr;
+  }
+}
+
