@@ -10,12 +10,14 @@
 
 DROP POLICY IF EXISTS "Allow public read access to doctors" ON doctors;
 DROP POLICY IF EXISTS "Allow doctors to update own records" ON doctors;
+DROP POLICY IF EXISTS "Allow authenticated users to insert doctors" ON doctors;
 DROP POLICY IF EXISTS "Allow admin to read all doctors" ON doctors;
 DROP POLICY IF EXISTS "Allow admin to update all doctors" ON doctors;
 DROP POLICY IF EXISTS "Allow admin to delete doctors" ON doctors;
 
 DROP POLICY IF EXISTS "Allow users to read their own patient data" ON patients;
 DROP POLICY IF EXISTS "Allow patients to update own records" ON patients;
+DROP POLICY IF EXISTS "Allow authenticated users to insert patients" ON patients;
 DROP POLICY IF EXISTS "Allow admin to read all patients" ON patients;
 DROP POLICY IF EXISTS "Allow admin to update all patients" ON patients;
 DROP POLICY IF EXISTS "Allow admin to delete patients" ON patients;
@@ -106,6 +108,11 @@ TO authenticated
 USING (auth.email() = email)
 WITH CHECK (auth.email() = email);
 
+CREATE POLICY "Allow authenticated users to insert doctors"
+ON doctors FOR INSERT
+TO authenticated
+WITH CHECK (true);
+
 CREATE POLICY "Allow admin to read all doctors"
 ON doctors FOR SELECT
 TO authenticated
@@ -150,6 +157,11 @@ ON patients FOR UPDATE
 TO authenticated
 USING (auth.email() = email)
 WITH CHECK (auth.email() = email);
+
+CREATE POLICY "Allow authenticated users to insert patients"
+ON patients FOR INSERT
+TO authenticated
+WITH CHECK (true);
 
 CREATE POLICY "Allow admin to read all patients"
 ON patients FOR SELECT

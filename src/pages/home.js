@@ -5,6 +5,83 @@ import { eventBus, EVENTS } from '../services/eventBus.js'
 let selectedDoctor = null
 let currentUser = null
 let isAdmin = false
+const PENDING_PROFILE_KEY = 'pending_profile_v1'
+
+function savePendingProfile(profile) {
+  try {
+    localStorage.setItem(PENDING_PROFILE_KEY, JSON.stringify(profile))
+  } catch (error) {
+    console.warn('Unable to save pending profile:', error)
+  }
+}
+
+function loadPendingProfile() {
+  try {
+    const raw = localStorage.getItem(PENDING_PROFILE_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch (error) {
+    console.warn('Unable to read pending profile:', error)
+    return null
+  }
+}
+
+function clearPendingProfile(email) {
+  try {
+    const pending = loadPendingProfile()
+    if (!pending || !email || pending.email === email) {
+      localStorage.removeItem(PENDING_PROFILE_KEY)
+    }
+  } catch (error) {
+    console.warn('Unable to clear pending profile:', error)
+  }
+}
+
+async function ensureProfileForAuthUser(user) {
+  if (!user?.email) return
+  const email = user.email
+  const pending = loadPendingProfile()
+
+  const { data: doctor } = await supabase
+    .from('doctors')
+    .select('id, email')
+    .eq('email', email)
+    .maybeSingle()
+
+  if (doctor) {
+    if (pending?.email === email) clearPendingProfile(email)
+    return
+  }
+
+  const { data: patient } = await supabase
+    .from('patients')
+    .select('id, email')
+    .eq('email', email)
+    .maybeSingle()
+
+  if (patient) {
+    if (pending?.email === email) clearPendingProfile(email)
+    return
+  }
+
+  if (!pending || pending.email !== email) return
+
+  try {
+    if (pending.user_type === 'doctor') {
+      await supabase
+        .from('doctors')
+        .insert([pending.profile])
+        .select('id')
+    } else if (pending.user_type === 'patient') {
+      await supabase
+        .from('patients')
+        .insert([pending.profile])
+        .select('id')
+    }
+    clearPendingProfile(email)
+  } catch (error) {
+    console.warn('Pending profile migration failed:', error.message)
+  }
+}
 
 export default function HomePage() {
   const container = document.createElement('div')
@@ -313,13 +390,18 @@ async function selectDoctor(doctorId, doctors) {
   document.querySelectorAll('.doctor-item').forEach(item => {
     item.classList.remove('active')
   })
-  document.querySelector(`[data-doctor-id="${doctorId}"]`).classList.add('active')
+  const selectedItem = document.querySelector(`[data-doctor-id="${doctorId}"]`)
+  if (selectedItem) {
+    selectedItem.classList.add('active')
+  }
   
-  // Show calendar
+  // Show calendar section
   const calendarSection = document.getElementById('calendar-section')
   const doctorNameHeader = document.getElementById('doctor-name-header')
-  doctorNameHeader.textContent = doctor.name
-  calendarSection.style.display = 'block'
+  if (calendarSection && doctorNameHeader) {
+    doctorNameHeader.textContent = doctor.name
+    calendarSection.style.display = 'block'
+  }
   
   // Load calendar
   await loadDoctorCalendar(doctor)
@@ -330,10 +412,18 @@ async function selectDoctor(doctorId, doctors) {
   }
 }
 
+let appointmentMap = {}
+
 async function loadDoctorCalendar(doctor) {
   const calendarContainer = document.getElementById('calendar-container')
+  if (!calendarContainer) {
+    console.error('Calendar container not found!')
+    return
+  }
   
-  // Generate week view
+  // Изчистваме контейнера преди да започнем
+  calendarContainer.innerHTML = '<div class="text-center"><div class="spinner-border text-primary"></div><p class="mt-2">Зареждане...</p></div>'
+  
   const today = new Date()
   const weekDays = []
   
@@ -343,79 +433,103 @@ async function loadDoctorCalendar(doctor) {
     weekDays.push(date)
   }
   
-  // Load appointments for this doctor
-  const { data: appointments } = await supabase
-    .from('appointments')
-    .select('id, doctor_id, patient_id, appointment_date, appointment_time, complaints, status, created_at')
-    .eq('doctor_id', doctor.id)
-    .gte('appointment_date', today.toISOString().split('T')[0])
-  
-  const appointmentMap = {}
-  if (appointments) {
-    appointments.forEach(apt => {
-      const key = `${apt.appointment_date}_${apt.appointment_time}`
-      appointmentMap[key] = apt
-    })
-  }
-  
-  // Generate calendar HTML
-  let calendarHTML = '<div class="calendar-week">'
-  
-  weekDays.forEach(date => {
-    const dateStr = date.toISOString().split('T')[0]
-    const dayName = date.toLocaleDateString('bg-BG', { weekday: 'short' })
-    const dayNum = date.getDate()
+  try {
+    // КРИТИЧНО: ИЗЧИСТВАМЕ ЦЕЛИЯ appointmentMap преди да заредим нов лекар
+    appointmentMap = {}
     
-    calendarHTML += `
-      <div class="calendar-day mb-3">
-        <div class="fw-bold text-center mb-2 bg-light p-2 rounded">${dayName} ${dayNum}</div>
-        <div class="time-slots">
-    `
+    // Заредяме appointments за този лекар
+    const { data: appointments, error } = await supabase
+      .from('appointments')
+      .select('*')
+      .eq('doctor_id', doctor.id)
     
-    // Generate time slots (9:00 - 17:00)
-    const workHoursFrom = doctor.work_hours_from || '08:00'
-    const workHoursTo = doctor.work_hours_to || '17:00'
-    
-    const startHour = parseInt(workHoursFrom.split(':')[0])
-    const endHour = parseInt(workHoursTo.split(':')[0])
-    
-    for (let hour = startHour; hour < endHour; hour++) {
-      const timeStr = `${hour.toString().padStart(2, '0')}:00`
-      const key = `${dateStr}_${timeStr}`
-      const isBooked = appointmentMap[key]
-      
-      const statusClass = isBooked ? 'btn-danger' : 'btn-success'
-      const statusText = isBooked ? 'Зает' : 'Свободен'
-      const statusIcon = isBooked ? 'x-circle' : 'check-circle'
-      
-      calendarHTML += `
-        <button class="btn ${statusClass} btn-sm w-100 mb-1 time-slot" 
-                data-date="${dateStr}" 
-                data-time="${timeStr}"
-                ${isBooked ? 'disabled' : ''}>
-          <i class="bi bi-${statusIcon}"></i> ${timeStr} - ${statusText}
-        </button>
-      `
+    if (error) {
+      console.error('Error loading appointments:', error)
+      calendarContainer.innerHTML = '<div class="alert alert-danger">Грешка при зареждане на записите</div>'
+      return
     }
     
-    calendarHTML += `
-        </div>
-      </div>
-    `
-  })
-  
-  calendarHTML += '</div>'
-  calendarContainer.innerHTML = calendarHTML
-  
-  // Add click handlers for time slots (only for logged in patients)
-  if (currentUser && currentUser.user_type === 'patient') {
-    document.querySelectorAll('.time-slot:not([disabled])').forEach(slot => {
-      slot.addEventListener('click', () => {
-        const date = slot.dataset.date
-        const time = slot.dataset.time
-        showBookingForm(doctor, date, time)
+    // Добавяме appointments за ТОЗИ ЛЕКАР
+    if (appointments && appointments.length > 0) {
+      appointments.forEach(apt => {
+        // КРИТИЧНО: Нормализираме времето (премахваме секундите)
+        const timeWithoutSeconds = apt.appointment_time.substring(0, 5) // "16:00:00" -> "16:00"
+        const key = `${apt.appointment_date}_${timeWithoutSeconds}`
+        appointmentMap[key] = apt
       })
+    }
+    
+    // Генериране на календара
+    let calendarHTML = '<div class="calendar-week">'
+    
+    weekDays.forEach(date => {
+      const dateStr = date.toISOString().split('T')[0]
+      const dayName = date.toLocaleDateString('bg-BG', { weekday: 'short' })
+      const dayNum = date.getDate()
+      
+      calendarHTML += `
+        <div class="calendar-day mb-3">
+          <div class="fw-bold text-center mb-2 bg-light p-2 rounded">${dayName} ${dayNum}</div>
+          <div class="time-slots">
+      `
+      
+      const workHoursFrom = doctor.work_hours_from || '08:00'
+      const workHoursTo = doctor.work_hours_to || '17:00'
+      const startHour = parseInt(workHoursFrom.split(':')[0])
+      const endHour = parseInt(workHoursTo.split(':')[0])
+      
+      for (let hour = startHour; hour < endHour; hour++) {
+        const timeStr = `${hour.toString().padStart(2, '0')}:00`
+        const key = `${dateStr}_${timeStr}`
+        const isBooked = appointmentMap.hasOwnProperty(key)
+        
+        if (isBooked) {
+          // ЗАПАЗЕН ЧАС - ЧЕРВЕН
+          calendarHTML += `
+            <button class="btn btn-sm w-100 mb-1 time-slot" 
+                    data-date="${dateStr}" 
+                    data-time="${timeStr}"
+                    style="background-color: #dc3545; border-color: #dc3545; color: white;"
+                    disabled>
+              <i class="bi bi-x-circle"></i> ${timeStr} - Запазен
+            </button>
+          `
+        } else {
+          // СВОБОДЕН ЧАС - ЗЕЛЕН
+          calendarHTML += `
+            <button class="btn btn-success btn-sm w-100 mb-1 time-slot" 
+                    data-date="${dateStr}" 
+                    data-time="${timeStr}">
+              <i class="bi bi-check-circle"></i> ${timeStr} - Свободен
+            </button>
+          `
+        }
+      }
+      
+      calendarHTML += `
+          </div>
+        </div>
+      `
     })
+    
+    calendarHTML += '</div>'
+    calendarContainer.innerHTML = calendarHTML
+    
+    // Add click handlers for time slots (only for logged in patients)
+    if (currentUser && currentUser.user_type === 'patient') {
+      document.querySelectorAll('.time-slot:not([disabled])').forEach(slot => {
+        slot.addEventListener('click', () => {
+          const date = slot.dataset.date
+          const time = slot.dataset.time
+          showBookingForm(doctor, date, time)
+        })
+      })
+    }
+  } catch (error) {
+    console.error('Fatal error in loadDoctorCalendar:', error)
+    if (calendarContainer) {
+      calendarContainer.innerHTML = '<div class="alert alert-danger">Грешка при зареждане на календара</div>'
+    }
   }
 }
 
@@ -450,6 +564,11 @@ async function createAppointment(doctorId, date, time) {
   const complaints = document.getElementById('booking-complaints').value
   
   try {
+    if (!currentUser || !currentUser.id) {
+      alert('Моля, влезте като пациент, за да запишете час.')
+      return
+    }
+
     const { data, error } = await supabase
       .from('appointments')
       .insert([{
@@ -460,11 +579,26 @@ async function createAppointment(doctorId, date, time) {
         complaints: complaints,
         status: 'scheduled'
       }])
+      .select('id, doctor_id, patient_id, appointment_date, appointment_time, complaints, status, created_at')
     
     if (error) throw error
     
+    // Актуализирам appointmentMap с новия запис
+    const newAppointment = data[0]
+    const key = `${date}_${time}`
+    appointmentMap[key] = newAppointment
+    
+    // Актуализирам только този час в UI без презареждане на целия календар
+    const slotButton = document.querySelector(`.time-slot[data-date="${date}"][data-time="${time}"]`)
+    if (slotButton) {
+      slotButton.classList.remove('btn-success')
+      slotButton.classList.add('btn-danger')
+      slotButton.setAttribute('disabled', 'disabled')
+      slotButton.innerHTML = `<i class="bi bi-x-circle"></i> ${time} - Запазен`
+      slotButton.removeEventListener('click', null) // Премахвам click handler
+    }
+    
     alert('Часът е записан успешно!')
-    loadDoctorCalendar(selectedDoctor)
     document.getElementById('booking-form-container').innerHTML = '<div class="alert alert-success">Успешно записан час!</div>'
   } catch (error) {
     console.error('Error creating appointment:', error)
@@ -476,6 +610,7 @@ async function checkUserSession() {
   const { data: { user } } = await supabase.auth.getUser()
   
   if (user) {
+    await ensureProfileForAuthUser(user)
     // Check if user is admin
     const { data: adminData } = await supabase
       .from('admins')
@@ -625,6 +760,17 @@ async function registerDoctor() {
   const hoursFrom = document.getElementById('doctor-hours-from').value
   const hoursTo = document.getElementById('doctor-hours-to').value
   const wantsAdmin = document.getElementById('doctor-request-admin').checked
+  const pendingProfile = {
+    email,
+    user_type: 'doctor',
+    profile: {
+      name,
+      specialty,
+      email,
+      work_hours_from: hoursFrom,
+      work_hours_to: hoursTo
+    }
+  }
   
   try {
     // Create auth user
@@ -634,6 +780,13 @@ async function registerDoctor() {
     })
     
     if (authError) throw authError
+
+    if (!authData.session) {
+      savePendingProfile(pendingProfile)
+      alert('Регистрацията е успешна! Потвърдете имейла и влезте в системата. Профилът ще се създаде автоматично.')
+      window.showLoginForm()
+      return
+    }
     
     // Create doctor record
     const { data, error } = await supabase
@@ -647,7 +800,10 @@ async function registerDoctor() {
       }])
       .select('id, name, specialty, email, work_hours_from, work_hours_to, created_at')
     
-    if (error) throw error
+    if (error) {
+      savePendingProfile(pendingProfile)
+      throw error
+    }
     
     await supabase.auth.signOut()
 
@@ -668,6 +824,7 @@ async function registerDoctor() {
     } else {
       alert('Регистрацията е успешна! Моля, влезте в системата.')
     }
+    clearPendingProfile(email)
     window.showLoginForm()
     loadDoctors()
   } catch (error) {
@@ -714,6 +871,15 @@ async function registerPatient() {
   const phone = document.getElementById('patient-phone').value
   const email = document.getElementById('patient-email').value
   const password = document.getElementById('patient-password').value
+  const pendingProfile = {
+    email,
+    user_type: 'patient',
+    profile: {
+      name,
+      phone,
+      email
+    }
+  }
   
   try {
     // Create auth user
@@ -723,6 +889,13 @@ async function registerPatient() {
     })
     
     if (authError) throw authError
+
+    if (!authData.session) {
+      savePendingProfile(pendingProfile)
+      alert('Регистрацията е успешна! Потвърдете имейла и влезте в системата. Профилът ще се създаде автоматично.')
+      window.showLoginForm()
+      return
+    }
     
     // Create patient record
     const { data, error } = await supabase
@@ -734,10 +907,14 @@ async function registerPatient() {
       }])
       .select('id, name, phone, email, created_at')
     
-    if (error) throw error
+    if (error) {
+      savePendingProfile(pendingProfile)
+      throw error
+    }
     
     await supabase.auth.signOut()
 
+    clearPendingProfile(email)
     alert('Регистрацията е успешна! Моля, влезте в системата.')
     window.showLoginForm()
   } catch (error) {
@@ -757,7 +934,7 @@ async function login() {
     })
     
     if (error) throw error
-    
+    await ensureProfileForAuthUser(data.user)
     await checkUserSession()
   } catch (error) {
     console.error('Error logging in:', error)

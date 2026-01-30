@@ -102,6 +102,12 @@ TO authenticated
 USING (auth.email() = email)
 WITH CHECK (auth.email() = email);
 
+-- Policy: Allow authenticated users to insert doctors
+CREATE POLICY "Allow authenticated users to insert doctors"
+ON doctors FOR INSERT
+TO authenticated
+WITH CHECK (true);
+
 -- Policy: Allow admin to read all doctors
 CREATE POLICY "Allow admin to read all doctors"
 ON doctors FOR SELECT
@@ -151,6 +157,12 @@ ON patients FOR UPDATE
 TO authenticated
 USING (auth.email() = email)
 WITH CHECK (auth.email() = email);
+
+-- Policy: Allow authenticated users to insert patients
+CREATE POLICY "Allow authenticated users to insert patients"
+ON patients FOR INSERT
+TO authenticated
+WITH CHECK (true);
 
 -- Policy: Allow admin to read all patients
 CREATE POLICY "Allow admin to read all patients"
