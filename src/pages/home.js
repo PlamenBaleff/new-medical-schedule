@@ -1,4 +1,3 @@
-// Home page component
 import { supabase } from '../services/supabase.js'
 import { eventBus, EVENTS } from '../services/eventBus.js'
 
@@ -91,9 +90,9 @@ export default function HomePage() {
     <div class="row g-4">
       <!-- Left Column - Doctors List -->
       <div class="col-lg-4">
-        <div class="card shadow-sm">
-          <div class="card-header bg-primary text-white">
-            <h5 class="mb-0"><i class="bi bi-people-fill"></i> Списък с лекари</h5>
+        <div class="card shadow-sm mb-3">
+          <div class="card-header" style="background: linear-gradient(135deg, #4FC3F7 0%, #29B6F6 100%); color: white;">
+            <h5 class="mb-0"><i class="fas fa-user-md" style="font-size: 20px; margin-right: 8px;"></i> Списък с лекари</h5>
           </div>
           <div class="card-body p-0">
             <div id="doctors-list" class="list-group list-group-flush">
@@ -105,11 +104,10 @@ export default function HomePage() {
             </div>
           </div>
         </div>
-
-        <!-- Calendar Section (below doctors list) -->
-        <div id="calendar-section" class="card shadow-sm mt-3" style="display: none;">
-          <div class="card-header bg-info text-white">
-            <h5 class="mb-0"><i class="bi bi-calendar3"></i> График на <span id="doctor-name-header"></span></h5>
+        <!-- Calendar Section for selected doctor -->
+        <div id="calendar-section" class="card shadow-sm" style="display:none;">
+          <div class="card-header" style="background: linear-gradient(135deg, #4DD0E1 0%, #26C6DA 100%); color: white;">
+            <h5 class="mb-0"><i class="fas fa-calendar-check" style="font-size: 20px; margin-right: 8px;"></i> График на <span id="doctor-name-header"></span></h5>
           </div>
           <div class="card-body">
             <div id="calendar-container"></div>
@@ -117,12 +115,13 @@ export default function HomePage() {
         </div>
       </div>
 
-      <!-- Right Column - Login/Registration Panel -->
+      <!-- Right Column - Login/Registration Panel + Calendar (sticky) -->
       <div class="col-lg-8">
+        <div id="auth-panel-wrapper">
         <!-- Auth Panel (shown when not logged in) -->
         <div id="auth-panel" class="card shadow-sm">
-          <div class="card-header bg-success text-white">
-            <h5 class="mb-0"><i class="bi bi-person-circle"></i> Вход / Регистрация</h5>
+          <div class="card-header" style="background: linear-gradient(135deg, #81C784 0%, #66BB6A 100%); color: white;">
+            <h5 class="mb-0"><i class="fas fa-user-circle" style="font-size: 20px; margin-right: 8px;"></i> Вход / Регистрация</h5>
           </div>
           <div class="card-body">
             <!-- User Type Selection -->
@@ -133,13 +132,13 @@ export default function HomePage() {
               <div class="row g-3">
                 <div class="col-md-6">
                   <button class="btn btn-primary btn-lg w-100" onclick="window.showAuthForm('doctor')">
-                    <i class="bi bi-person-badge"></i><br>
+                    <i class="fas fa-user-md" style="font-size: 32px; display: block; margin-bottom: 8px;"></i>
                     Регистрация като лекар
                   </button>
                 </div>
                 <div class="col-md-6">
-                  <button class="btn btn-info btn-lg w-100" onclick="window.showAuthForm('patient')">
-                    <i class="bi bi-person"></i><br>
+                  <button class="btn btn-success btn-lg w-100" onclick="window.showAuthForm('patient')">
+                    <i class="fas fa-user" style="font-size: 32px; display: block; margin-bottom: 8px;"></i>
                     Регистрация като пациент
                   </button>
                 </div>
@@ -147,7 +146,7 @@ export default function HomePage() {
               <div class="text-center mt-4">
                 <p class="text-muted">Вече имате профил?</p>
                 <button class="btn btn-outline-secondary" onclick="window.showLoginForm()">
-                  <i class="bi bi-box-arrow-in-right"></i> Вход
+                  <i class="fas fa-sign-in-alt" style="margin-right: 8px;"></i> Вход
                 </button>
               </div>
             </div>
@@ -163,6 +162,14 @@ export default function HomePage() {
                 <div class="mb-3">
                   <label class="form-label">Специалност</label>
                   <input type="text" class="form-control" id="doctor-specialty" required>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Телефон</label>
+                  <input type="tel" class="form-control" id="doctor-phone" placeholder="+359...">
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Адрес на практиката</label>
+                  <input type="text" class="form-control" id="doctor-address" placeholder="гр. София, ул. ...">
                 </div>
                 <div class="mb-3">
                   <label class="form-label">Email</label>
@@ -238,11 +245,11 @@ export default function HomePage() {
 
         <!-- User Panel (shown when logged in) -->
         <div id="user-panel" class="card shadow-sm" style="display: none;">
-          <div class="card-header bg-dark text-white">
+          <div class="card-header" style="background: linear-gradient(135deg, #455A64 0%, #37474F 100%); color: white;">
             <div class="d-flex justify-content-between align-items-center">
-              <h5 class="mb-0"><i class="bi bi-person-check"></i> Профил</h5>
+              <h5 class="mb-0"><i class="fas fa-user-check" style="font-size: 20px; margin-right: 8px;"></i> Профил</h5>
               <button class="btn btn-sm btn-outline-light" onclick="window.logout()">
-                <i class="bi bi-box-arrow-right"></i> Изход
+                <i class="fas fa-sign-out-alt" style="margin-right: 6px;"></i> Изход
               </button>
             </div>
           </div>
@@ -253,20 +260,121 @@ export default function HomePage() {
 
         <!-- Appointment Booking Panel (for patients) -->
         <div id="booking-panel" class="card shadow-sm mt-3" style="display: none;">
-          <div class="card-header bg-warning">
-            <h5 class="mb-0"><i class="bi bi-calendar-plus"></i> Запиши час</h5>
+          <div class="card-header" style="background: linear-gradient(135deg, #FFB74D 0%, #FFA726 100%); color: white;">
+            <h5 class="mb-0"><i class="fas fa-calendar-plus" style="font-size: 20px; margin-right: 8px;"></i> Запиши час</h5>
           </div>
           <div class="card-body">
             <div id="booking-form-container"></div>
           </div>
         </div>
       </div>
+        <!-- Sticky Calendar Panel -->
+        <div id="month-calendar-home" style="position:sticky;top:24px;z-index:10;"></div>
+        <div id="selected-day-schedule-panel" class="card shadow-sm mt-3" style="display:none;"></div>
+      </div>
     </div>
   `
   
   // Initialize the page
   setTimeout(() => {
-    initializePage()
+    // Вмъкни календара под auth/user/booking панелите
+    import('../components/MonthCalendar.js').then(({ default: MonthCalendar }) => {
+      const calendar = MonthCalendar({
+        onDateSelect: (date) => {
+          window.selectedDayFromCalendar = date;
+          renderSelectedDaySchedule();
+        }
+      })
+      document.getElementById('month-calendar-home').appendChild(calendar)
+    })
+    window.selectedDayFromCalendar = null;
+    window.selectedDoctorForDay = null;
+    window.renderSelectedDaySchedule = async function() {
+      const panel = document.getElementById('selected-day-schedule-panel');
+      if (!panel) return;
+      const date = window.selectedDayFromCalendar;
+      const doctor = window.selectedDoctorForDay;
+      if (!date) {
+        panel.style.display = 'none';
+        return;
+      }
+      panel.style.display = 'block';
+      panel.innerHTML = `<div class="card-header bg-info text-white"><i class="fas fa-calendar-day"></i> График за ${date}</div><div class="card-body"><div id="selected-day-slots"></div></div>`;
+      const slotsDiv = document.getElementById('selected-day-slots');
+      if (!doctor) {
+        slotsDiv.innerHTML = '<div class="text-muted">Изберете лекар от списъка вляво.</div>';
+        return;
+      }
+      slotsDiv.innerHTML = '<div class="text-center"><div class="spinner-border text-primary"></div></div>';
+      // Зареждане на часовете за избрания лекар и ден
+      try {
+        const { data: appointments } = await supabase
+          .from('appointments')
+          .select('*')
+          .eq('doctor_id', doctor.id)
+          .eq('appointment_date', date);
+        const bookedTimes = (appointments || []).map(a => a.appointment_time.substring(0,5));
+        const workFrom = doctor.work_hours_from || '08:00';
+        const workTo = doctor.work_hours_to || '17:00';
+        const startHour = parseInt(workFrom.split(':')[0]);
+        const endHour = parseInt(workTo.split(':')[0]);
+        let html = '';
+        const user = currentUser;
+        for (let h = startHour; h < endHour; h++) {
+          const t = `${String(h).padStart(2,'0')}:00`;
+          const isBooked = bookedTimes.includes(t);
+          if (isBooked) {
+            html += `<div class="mb-2"><button class="btn btn-danger btn-lg w-100" disabled style="font-size:1.1rem;"><i class="fas fa-times-circle"></i> ${t} - Запазен</button></div>`;
+          } else if (user && user.user_type === 'patient') {
+            html += `<div class="mb-2"><button class="btn btn-success btn-lg w-100 book-slot-btn" data-time="${t}" style="font-size:1.1rem;"><i class="fas fa-check-circle"></i> ${t} - Свободен</button></div>`;
+          } else {
+            html += `<div class="mb-2"><button class="btn btn-success btn-lg w-100" disabled style="font-size:1.1rem;"><i class="fas fa-check-circle"></i> ${t} - Свободен</button></div>`;
+          }
+        }
+        slotsDiv.innerHTML = html;
+        // Добавям click handler-и за записване на час
+        if (user && user.user_type === 'patient') {
+          slotsDiv.querySelectorAll('.book-slot-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+              const time = btn.dataset.time;
+              // Покажи форма за записване
+              slotsDiv.innerHTML = `<form id="booking-form-selected-day"><div class="mb-3"><label class="form-label">Оплаквания / Причина за посещението</label><textarea class="form-control" id="booking-complaints-selected-day" rows="3" required placeholder="Опишете накратко оплакванията си..."></textarea></div><button type="submit" class="btn btn-warning">Потвърди запис за ${time}</button> <button type="button" class="btn btn-secondary ms-2" id="cancel-booking-selected-day">Назад</button></form>`;
+              document.getElementById('cancel-booking-selected-day').onclick = () => renderSelectedDaySchedule();
+              document.getElementById('booking-form-selected-day').onsubmit = async (e) => {
+                e.preventDefault();
+                const complaints = document.getElementById('booking-complaints-selected-day').value;
+                try {
+                  const { error } = await supabase
+                    .from('appointments')
+                    .insert([{
+                      doctor_id: doctor.id,
+                      patient_id: user.id,
+                      appointment_date: date,
+                      appointment_time: time,
+                      complaints: complaints,
+                      status: 'scheduled'
+                    }]);
+                  if (error) throw error;
+                  slotsDiv.innerHTML = '<div class="alert alert-success">Успешно записан час!</div>';
+                  setTimeout(renderSelectedDaySchedule, 1200);
+                } catch (err) {
+                  slotsDiv.innerHTML = '<div class="alert alert-danger">Грешка при записване на час!</div>';
+                  setTimeout(renderSelectedDaySchedule, 1200);
+                }
+              };
+            });
+          });
+        }
+      } catch (e) {
+        slotsDiv.innerHTML = '<div class="text-danger">Грешка при зареждане на графика.</div>';
+      }
+    }
+    // Синхронизирай избора на доктор от списъка
+    window.setSelectedDoctorForDay = function(doctor) {
+      window.selectedDoctorForDay = doctor;
+      renderSelectedDaySchedule();
+    }
+    initializePage();
   }, 0)
   
   return container
@@ -345,7 +453,7 @@ async function loadDoctors() {
     // Only show warning if we're actually using demo data
     doctorsList.innerHTML = `
       <div class="alert alert-warning m-2">
-        <small><i class="bi bi-exclamation-triangle"></i> Supabase връзка временно недостъпна. Показват се демо данни.</small>
+        <small><i class="fas fa-exclamation-triangle" style="margin-right: 6px;"></i> Supabase връзка временно недостъпна. Показват се демо данни.</small>
       </div>
     `
     renderDoctorsList(demoDoctors, doctorsList)
@@ -356,8 +464,8 @@ function renderDoctorsList(doctors, container) {
   const doctorsHTML = doctors.map(doctor => `
     <a href="#" class="list-group-item list-group-item-action doctor-item" data-doctor-id="${doctor.id}">
       <div class="d-flex w-100 justify-content-between">
-        <h6 class="mb-1"><i class="bi bi-person-badge"></i> ${doctor.name}</h6>
-        <small class="text-success"><i class="bi bi-circle-fill"></i></small>
+        <h6 class="mb-1"><i class="fas fa-user-md" style="margin-right: 8px;"></i> ${doctor.name}</h6>
+        <small class="text-success"><i class="fas fa-circle" style="margin-right: 4px;"></i></small>
       </div>
       <small class="text-muted">${doctor.specialty || 'Лекар'}</small>
     </a>
@@ -385,6 +493,7 @@ async function selectDoctor(doctorId, doctors) {
   if (!doctor) return
   
   selectedDoctor = doctor
+  window.setSelectedDoctorForDay && window.setSelectedDoctorForDay(doctor);
   
   // Highlight selected doctor
   document.querySelectorAll('.doctor-item').forEach(item => {
@@ -491,7 +600,7 @@ async function loadDoctorCalendar(doctor) {
                     data-time="${timeStr}"
                     style="background-color: #dc3545; border-color: #dc3545; color: white;"
                     disabled>
-              <i class="bi bi-x-circle"></i> ${timeStr} - Запазен
+              <i class="fas fa-times-circle" style="margin-right: 6px;"></i> ${timeStr} - Запазен
             </button>
           `
         } else {
@@ -500,7 +609,7 @@ async function loadDoctorCalendar(doctor) {
             <button class="btn btn-success btn-sm w-100 mb-1 time-slot" 
                     data-date="${dateStr}" 
                     data-time="${timeStr}">
-              <i class="bi bi-check-circle"></i> ${timeStr} - Свободен
+              <i class="fas fa-check-circle" style="margin-right: 6px;"></i> ${timeStr} - Свободен
             </button>
           `
         }
@@ -594,7 +703,7 @@ async function createAppointment(doctorId, date, time) {
       slotButton.classList.remove('btn-success')
       slotButton.classList.add('btn-danger')
       slotButton.setAttribute('disabled', 'disabled')
-      slotButton.innerHTML = `<i class="bi bi-x-circle"></i> ${time} - Запазен`
+      slotButton.innerHTML = `<i class="fas fa-times-circle" style="margin-right: 6px;"></i> ${time} - Запазен`
       slotButton.removeEventListener('click', null) // Премахвам click handler
     }
     
@@ -629,7 +738,7 @@ async function checkUserSession() {
     // Check if user is doctor or patient
     const { data: doctor } = await supabase
       .from('doctors')
-      .select('id, name, specialty, email, work_hours_from, work_hours_to, created_at')
+      .select('*')
       .eq('email', user.email)
       .maybeSingle()
     
@@ -661,14 +770,14 @@ function showUserPanel() {
   if (currentUser.user_type === 'admin') {
     userInfo.innerHTML = `
       <div class="alert alert-danger mb-3">
-        <i class="bi bi-shield-lock"></i> <strong>Администраторски достъп</strong>
+        <i class="fas fa-shield-alt"></i> <strong>Администраторски достъп</strong>
       </div>
       <h5>Добре дошли, <span id="admin-greeting-name">${currentUser.name || 'администратор'}</span> (администратор)!</h5>
       <p><strong>Email:</strong> ${currentUser.email}</p>
       <hr>
       <h6 class="mt-4 mb-3">Администраторски функции:</h6>
       <button class="btn btn-danger w-100 mb-2" onclick="window.showAdminPanel()">
-        <i class="bi bi-gear"></i> Администраторски панел
+        <i class="fas fa-tools"></i> Администраторски панел
       </button>
       <p class="text-muted small mt-3">Имате достъп до всички профили, графици и записи.</p>
     `
@@ -690,6 +799,8 @@ function showUserPanel() {
       <h5>Добре дошли, д-р ${currentUser.name}!</h5>
       <p><strong>Специалност:</strong> ${currentUser.specialty}</p>
       <p><strong>Email:</strong> ${currentUser.email}</p>
+      <p><strong>Телефон:</strong> ${currentUser.phone || 'Не е посочен'}</p>
+      <p><strong>Адрес:</strong> ${currentUser.address || 'Не е посочен'}</p>
       <p><strong>Работни часове:</strong> <span id="user-work-hours">${currentUser.work_hours_from} - ${currentUser.work_hours_to}</span></p>
       <div id="admin-request-status" class="mt-3"></div>
     `
@@ -699,7 +810,7 @@ function showUserPanel() {
       // Reload fresh user data from database
       const { data: updatedDoctor } = await supabase
         .from('doctors')
-        .select('id, name, specialty, email, work_hours_from, work_hours_to, created_at')
+        .select('*')
         .eq('email', currentUser.email)
         .maybeSingle()
       
@@ -755,6 +866,8 @@ function setupEventListeners() {
 async function registerDoctor() {
   const name = document.getElementById('doctor-name').value
   const specialty = document.getElementById('doctor-specialty').value
+  const phone = document.getElementById('doctor-phone').value
+  const address = document.getElementById('doctor-address').value
   const email = document.getElementById('doctor-email').value
   const password = document.getElementById('doctor-password').value
   const hoursFrom = document.getElementById('doctor-hours-from').value
@@ -766,6 +879,8 @@ async function registerDoctor() {
     profile: {
       name,
       specialty,
+      phone,
+      address,
       email,
       work_hours_from: hoursFrom,
       work_hours_to: hoursTo
@@ -789,16 +904,32 @@ async function registerDoctor() {
     }
     
     // Create doctor record
-    const { data, error } = await supabase
+    const doctorPayload = {
+      name: name,
+      specialty: specialty,
+      email: email,
+      work_hours_from: hoursFrom,
+      work_hours_to: hoursTo
+    }
+    if (phone) doctorPayload.phone = phone
+    if (address) doctorPayload.address = address
+
+    let { data, error } = await supabase
       .from('doctors')
-      .insert([{
-        name: name,
-        specialty: specialty,
-        email: email,
-        work_hours_from: hoursFrom,
-        work_hours_to: hoursTo
-      }])
-      .select('id, name, specialty, email, work_hours_from, work_hours_to, created_at')
+      .insert([doctorPayload])
+      .select('*')
+
+    if (error && /column .*phone|column .*address/i.test(error.message)) {
+      const fallbackPayload = { ...doctorPayload }
+      delete fallbackPayload.phone
+      delete fallbackPayload.address
+      const retry = await supabase
+        .from('doctors')
+        .insert([fallbackPayload])
+        .select('*')
+      data = retry.data
+      error = retry.error
+    }
     
     if (error) {
       savePendingProfile(pendingProfile)
@@ -936,6 +1067,16 @@ async function login() {
     if (error) throw error
     await ensureProfileForAuthUser(data.user)
     await checkUserSession()
+    
+    // If a doctor is already selected, reload the calendar to show correct availability
+    if (selectedDoctor && currentUser && currentUser.user_type === 'patient') {
+      await loadDoctorCalendar(selectedDoctor)
+    }
+    
+    // Refresh the selected day schedule panel if it's open
+    if (window.renderSelectedDaySchedule) {
+      window.renderSelectedDaySchedule()
+    }
   } catch (error) {
     console.error('Error logging in:', error)
     alert('Грешка при вход: ' + error.message)
@@ -968,6 +1109,25 @@ window.logout = async () => {
   await supabase.auth.signOut()
   currentUser = null
   isAdmin = false
+  
+  // Clear calendar and reset it
+  const calendarContainer = document.getElementById('calendar-container')
+  if (calendarContainer) {
+    calendarContainer.innerHTML = ''
+  }
+  
+  const calendarSection = document.getElementById('calendar-section')
+  if (calendarSection) {
+    calendarSection.style.display = 'none'
+  }
+  
+  // Clear selected day schedule panel
+  const selectedDayPanel = document.getElementById('selected-day-schedule-panel')
+  if (selectedDayPanel) {
+    selectedDayPanel.style.display = 'none'
+    selectedDayPanel.innerHTML = ''
+  }
+  
   document.getElementById('auth-panel').style.display = 'block'
   document.getElementById('user-panel').style.display = 'none'
   document.getElementById('booking-panel').style.display = 'none'
@@ -988,9 +1148,9 @@ window.showAdminPanel = async () => {
         <div class="card shadow-sm">
           <div class="card-header bg-danger text-white">
             <div class="d-flex justify-content-between align-items-center">
-              <h5 class="mb-0"><i class="bi bi-shield-lock"></i> Администраторски панел</h5>
+              <h5 class="mb-0"><i class="fas fa-shield-alt" style="font-size: 20px; margin-right: 8px;"></i> Администраторски панел</h5>
               <button class="btn btn-sm btn-outline-light" onclick="window.location.reload()">
-                <i class="bi bi-house"></i> Назад
+                <i class="fas fa-home" style="margin-right: 6px;"></i> Назад
               </button>
             </div>
           </div>
@@ -999,22 +1159,22 @@ window.showAdminPanel = async () => {
             <ul class="nav nav-tabs mb-4" role="tablist">
               <li class="nav-item" role="presentation">
                 <button class="nav-link active" id="doctors-tab" data-bs-toggle="tab" data-bs-target="#doctors-panel" type="button" role="tab">
-                  <i class="bi bi-person-badge"></i> Лекари (${(await getDoctorsCount())})
+                  <i class="fas fa-user-md" style="margin-right: 6px;"></i> Лекари (${(await getDoctorsCount())})
                 </button>
               </li>
               <li class="nav-item" role="presentation">
                 <button class="nav-link" id="patients-tab" data-bs-toggle="tab" data-bs-target="#patients-panel" type="button" role="tab">
-                  <i class="bi bi-person"></i> Пациенти (${(await getPatientsCount())})
+                  <i class="fas fa-user" style="margin-right: 6px;"></i> Пациенти (${(await getPatientsCount())})
                 </button>
               </li>
               <li class="nav-item" role="presentation">
                 <button class="nav-link" id="appointments-tab" data-bs-toggle="tab" data-bs-target="#appointments-panel" type="button" role="tab">
-                  <i class="bi bi-calendar-event"></i> Записи
+                  <i class="fas fa-calendar-check" style="margin-right: 6px;"></i> Записи
                 </button>
               </li>
               <li class="nav-item" role="presentation">
                 <button class="nav-link" id="admin-requests-tab" data-bs-toggle="tab" data-bs-target="#admin-requests-panel" type="button" role="tab">
-                  <i class="bi bi-shield-plus"></i> Заявки за админ (${(await getAdminRequestsCount())})
+                  <i class="fas fa-user-shield" style="margin-right: 6px;"></i> Заявки за админ (${(await getAdminRequestsCount())})
                 </button>
               </li>
             </ul>
@@ -1087,7 +1247,7 @@ async function loadAdminDoctors() {
   try {
     const { data: doctors, error } = await supabase
       .from('doctors')
-      .select('id, name, specialty, email, work_hours_from, work_hours_to, created_at')
+      .select('*')
       .order('name')
     
     if (error) throw error
@@ -1105,7 +1265,7 @@ async function loadAdminDoctors() {
             <td>${doc.work_hours_from} - ${doc.work_hours_to}</td>
             <td>
               <button class="btn btn-sm btn-danger" onclick="window.deleteDoctor('${doc.id}')">
-                <i class="bi bi-trash"></i> Изтрий
+                <i class="fas fa-trash" style="margin-right: 6px;"></i> Изтрий
               </button>
             </td>
           </tr>
@@ -1146,7 +1306,7 @@ async function loadAdminPatients() {
             <td>${date}</td>
             <td>
               <button class="btn btn-sm btn-danger" onclick="window.deletePatient('${patient.id}')">
-                <i class="bi bi-trash"></i> Изтрий
+                <i class="fas fa-trash" style="margin-right: 6px;"></i> Изтрий
               </button>
             </td>
           </tr>
@@ -1188,7 +1348,7 @@ async function loadAdminAppointments() {
             <td><small>${apt.complaints ? apt.complaints.substring(0, 30) + '...' : '-'}</small></td>
             <td>
               <button class="btn btn-sm btn-danger" onclick="window.deleteAppointment('${apt.id}')">
-                <i class="bi bi-trash"></i>
+                <i class="fas fa-trash"></i>
               </button>
             </td>
           </tr>
@@ -1230,10 +1390,10 @@ async function loadAdminRequests() {
             <td>${date}</td>
             <td>
               <button class="btn btn-sm btn-success me-2" onclick="window.approveAdminRequest('${req.id}')">
-                <i class="bi bi-check-lg"></i> Одобри
+                <i class="fas fa-check" style="margin-right: 6px;"></i> Одобри
               </button>
               <button class="btn btn-sm btn-outline-danger" onclick="window.rejectAdminRequest('${req.id}')">
-                <i class="bi bi-x-lg"></i> Откажи
+                <i class="fas fa-times" style="margin-right: 6px;"></i> Откажи
               </button>
             </td>
           </tr>

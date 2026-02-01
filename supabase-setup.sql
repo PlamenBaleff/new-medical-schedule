@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS doctors (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
   specialty TEXT,
+  phone TEXT,
+  address TEXT,
   email TEXT UNIQUE NOT NULL,
   work_hours_from TIME DEFAULT '08:00',
   work_hours_to TIME DEFAULT '17:00',

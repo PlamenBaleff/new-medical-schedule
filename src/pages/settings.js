@@ -61,12 +61,12 @@ function buildSettingsHTML(currentUser) {
   return `
     <div class="row">
       <div class="col-lg-8 mx-auto">
-        <h1 class="mb-4">Настройки</h1>
+        <h1 class="mb-4"><i class="fas fa-cogs" style="font-size: 24px; margin-right: 8px;"></i> Настройки</h1>
         
         <!-- Profile Settings Card -->
         <div class="card shadow-sm mb-4" id="profile-card">
-          <div class="card-header bg-primary text-white">
-            <h5 class="mb-0">Профил</h5>
+          <div class="card-header" style="background: linear-gradient(135deg, #4FC3F7 0%, #29B6F6 100%); color: white;">
+            <h5 class="mb-0"><i class="fas fa-user-circle" style="font-size: 20px; margin-right: 8px;"></i> Профил</h5>
           </div>
           <div class="card-body">
             <div class="spinner-border text-primary" role="status">
@@ -77,13 +77,13 @@ function buildSettingsHTML(currentUser) {
         
         <!-- About Card -->
         <div class="card shadow-sm">
-          <div class="card-header bg-secondary text-white">
-            <h5 class="mb-0">Информация</h5>
+          <div class="card-header" style="background: linear-gradient(135deg, #90A4AE 0%, #78909C 100%); color: white;">
+            <h5 class="mb-0"><i class="fas fa-info-circle" style="font-size: 20px; margin-right: 8px;"></i> Информация</h5>
           </div>
           <div class="card-body">
-            <p><strong>Приложение:</strong> Medical Schedule</p>
-            <p><strong>Версия:</strong> 1.0.0</p>
-            <p><strong>Построено с:</strong> HTML, CSS, JavaScript, Vite, Bootstrap, Supabase</p>
+            <p><strong><i class="fas fa-laptop" style="margin-right: 6px;"></i> Приложение:</strong> Medical Schedule</p>
+            <p><strong><i class="fas fa-tag" style="margin-right: 6px;"></i> Версия:</strong> 1.0.0</p>
+            <p><strong><i class="fas fa-tools" style="margin-right: 6px;"></i> Построено с:</strong> HTML, CSS, JavaScript, Vite, Bootstrap, Supabase</p>
           </div>
         </div>
       </div>
@@ -124,10 +124,10 @@ function setupSettingsHandlers(currentUser, container) {
               <p>Вашият профил не е намерен в системата. Моля изберете тип профил:</p>
               <div class="mt-3">
                 <button class="btn btn-primary me-2" id="create-doctor-btn">
-                  <i class="bi bi-person-badge"></i> Аз съм лекар
+                  <i class="fas fa-user-md" style="margin-right: 8px;"></i> Аз съм лекар
                 </button>
-                <button class="btn btn-info" id="create-patient-btn">
-                  <i class="bi bi-person"></i> Аз съм пациент
+                <button class="btn btn-success" id="create-patient-btn">
+                  <i class="fas fa-user" style="margin-right: 8px;"></i> Аз съм пациент
                 </button>
               </div>
             </div>
@@ -169,6 +169,16 @@ function setupSettingsHandlers(currentUser, container) {
             <input type="text" class="form-control" id="specialty" value="${userData.specialty || ''}">
           </div>
           
+          <div class="mb-3">
+            <label for="phone" class="form-label"><strong>Телефон</strong></label>
+            <input type="tel" class="form-control" id="phone" value="${userData.phone || ''}" placeholder="+359...">
+          </div>
+          
+          <div class="mb-3">
+            <label for="address" class="form-label"><strong>Адрес на практиката</strong></label>
+            <input type="text" class="form-control" id="address" value="${userData.address || ''}" placeholder="гр. София, ул. ...">
+          </div>
+          
           <div class="row">
             <div class="col-md-6">
               <div class="mb-3">
@@ -189,10 +199,10 @@ function setupSettingsHandlers(currentUser, container) {
       formHTML += `
           <div class="d-flex gap-2">
             <button type="submit" class="btn btn-primary">
-              <i class="bi bi-save"></i> Запиши промените
+              <i class="fas fa-save" style="margin-right: 6px;"></i> Запиши промените
             </button>
             <button type="button" class="btn btn-secondary" id="logout-btn">
-              <i class="bi bi-box-arrow-right"></i> Изход
+              <i class="fas fa-sign-out-alt" style="margin-right: 6px;"></i> Изход
             </button>
           </div>
           <div id="message-container"></div>
@@ -217,6 +227,8 @@ function setupSettingsHandlers(currentUser, container) {
           
           if (userType === 'doctor') {
             formData.specialty = document.getElementById('specialty').value
+            formData.phone = document.getElementById('phone').value
+            formData.address = document.getElementById('address').value
             formData.work_hours_from = document.getElementById('work_hours_from').value
             formData.work_hours_to = document.getElementById('work_hours_to').value
           }
@@ -234,7 +246,7 @@ function setupSettingsHandlers(currentUser, container) {
           
           messageContainer.innerHTML = `
             <div class="alert alert-success mt-3">
-              <i class="bi bi-check-circle"></i> Промените са запазени успешно!
+              <i class="fas fa-check-circle" style="margin-right: 6px;"></i> Промените са запазени успешно!
             </div>
           `
           
@@ -245,7 +257,7 @@ function setupSettingsHandlers(currentUser, container) {
           console.error('Error updating profile:', error)
           messageContainer.innerHTML = `
             <div class="alert alert-danger mt-3">
-              <i class="bi bi-exclamation-triangle"></i> Възникна грешка при запазване на промените.
+              <i class="fas fa-exclamation-triangle" style="margin-right: 6px;"></i> Възникна грешка при запазване на промените.
             </div>
           `
         } finally {
@@ -272,7 +284,7 @@ function setupSettingsHandlers(currentUser, container) {
       if (profileCard) {
         profileCard.querySelector('.card-body').innerHTML = `
           <div class="alert alert-danger">
-            <i class="bi bi-exclamation-triangle"></i> Неуспешно зареждане на профила. Проверете конзолата за детайли.
+            <i class="fas fa-exclamation-triangle"></i> Неуспешно зареждане на профила. Проверете конзолата за детайли.
           </div>
         `
       }
@@ -293,6 +305,8 @@ async function createUserProfile(email, userType, profileCard, container) {
       await createDoctor({
         name: email.split('@')[0],
         specialty: 'Неопределена',
+        phone: '',
+        address: '',
         email: email,
         work_hours_from: '08:00',
         work_hours_to: '17:00'
@@ -319,7 +333,7 @@ async function createUserProfile(email, userType, profileCard, container) {
     console.error('Error creating profile:', error)
     profileCard.querySelector('.card-body').innerHTML = `
       <div class="alert alert-danger">
-        <i class="bi bi-exclamation-triangle"></i> Грешка при създаване на профила: ${error.message}
+        <i class="fas fa-exclamation-triangle"></i> Грешка при създаване на профила: ${error.message}
       </div>
     `
   }

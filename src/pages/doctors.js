@@ -9,7 +9,7 @@ export default function DoctorsPage() {
   container.innerHTML = `
     <div class="row">
       <div class="col-lg-10 mx-auto">
-        <h1 class="mb-4">Лекари</h1>
+        <h1 class="mb-4"><i class="fas fa-stethoscope" style="font-size: 24px; margin-right: 8px;"></i> Лекари</h1>
         <div id="doctors-grid" class="row g-4">
           <div class="col-12 text-center text-muted">
             <div class="spinner-border text-primary" role="status"></div>
@@ -36,17 +36,23 @@ export default function DoctorsPage() {
           <div class="card shadow-sm h-100">
             <div class="card-body text-center">
               <div class="mb-3">
-                <i class="bi bi-person-fill display-4 text-primary"></i>
+                <i class="fas fa-user-doctor" style="font-size: 48px; color: #4FC3F7; display: block; text-align: center;"></i>
               </div>
               <h5 class="card-title">${doctor.name}</h5>
               <p class="text-muted small">${doctor.specialty || '-'}</p>
-              <p class="small mb-3">
-                <i class="bi bi-envelope"></i> ${doctor.email}
+              <p class="small mb-2">
+                <i class="fas fa-envelope" style="margin-right: 6px;"></i> ${doctor.email}
+              </p>
+              <p class="small mb-2">
+                <i class="fas fa-phone" style="margin-right: 6px;"></i> ${doctor.phone || 'Не е посочен'}
+              </p>
+              <p class="small mb-2">
+                <i class="fas fa-map-marker-alt" style="margin-right: 6px;"></i> ${doctor.address || 'Не е посочен'}
               </p>
               <p class="small mb-3">
-                <i class="bi bi-clock"></i> ${doctor.work_hours_from || '08:00'} - ${doctor.work_hours_to || '17:00'}
+                <i class="fas fa-clock" style="margin-right: 6px;"></i> ${doctor.work_hours_from || '08:00'} - ${doctor.work_hours_to || '17:00'}
               </p>
-              <div class="badge bg-success mb-2">Наличен</div>
+              <div class="badge bg-success mb-2"><i class="fas fa-check-circle" style="margin-right: 4px;"></i> Наличен</div>
             </div>
           </div>
         </div>

@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS doctors (
   name TEXT NOT NULL,
   specialty TEXT,
   email TEXT UNIQUE NOT NULL,
+  phone TEXT,
+  address TEXT,
   work_hours_from TIME DEFAULT '08:00',
   work_hours_to TIME DEFAULT '17:00',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
