@@ -202,5 +202,318 @@
   margin: 0;
 }
 
+/* Dark theme specific enhancements */
+[data-theme="dark"] .spinner-border {
+  border-color: rgba(66, 165, 245, 0.3);
+  border-right-color: var(--primary-color);
+}
 
+[data-theme="dark"] .alert-info {
+  background-color: #1E3A5F;
+  border-color: #2C5282;
+  color: #B3D9FF;
+}
+
+[data-theme="dark"] .alert-success {
+  background-color: #1B3A1F;
+  border-color: #2D5A2F;
+  color: #A5D6A7;
+}
+
+[data-theme="dark"] .alert-warning {
+  background-color: #3A2A1F;
+  border-color: #5A4A2F;
+  color: #FFD699;
+}
+
+[data-theme="dark"] .alert-danger {
+  background-color: #3A1F1F;
+  border-color: #5A2F2F;
+  color: #FFABAB;
+}
+
+[data-theme="dark"] .table thead th {
+  background: linear-gradient(135deg, #2D5A2F 0%, #1B3A1F 100%);
+  color: #A5D6A7;
+}
+
+[data-theme="dark"] .table tbody tr {
+  border-bottom: 1px solid #3A3A3A;
+}
+
+[data-theme="dark"] .table tbody tr:hover {
+  background-color: #2A2A2A;
+}
+
+[data-theme="dark"] .time-slot:not(:disabled):hover {
+  background-color: rgba(66, 165, 245, 0.2);
+}
+
+[data-theme="dark"] .form-select {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .form-select:focus {
+  background-color: var(--form-focus-bg);
+  border-color: var(--primary-color);
+}
+
+[data-theme="dark"] .modal-content {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .modal-header {
+  border-bottom: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .modal-footer {
+  border-top: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .dropdown-menu {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .dropdown-item {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .dropdown-item:hover {
+  background-color: var(--doctor-item-hover-bg);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .form-check-input {
+  background-color: var(--bg-card);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .form-check-input:checked {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+[data-theme="dark"] .badge {
+  color: white;
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: #888;
+}
+
+[data-theme="dark"] .card-header {
+  border-bottom: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .list-group-item::before {
+  background: linear-gradient(180deg, #42A5F5 0%, #66BB6A 100%);
+}
+
+[data-theme="dark"] .nav-tabs {
+  border-bottom: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .nav-tabs .nav-link:hover {
+  border-bottom-color: var(--primary-color);
+  background-color: var(--calendar-day-bg);
+}
+
+[data-theme="dark"] .nav-tabs .nav-link.active {
+  color: var(--primary-color);
+  background-color: transparent;
+  border-bottom-color: var(--primary-color);
+}
+
+/* Additional dark theme text readability improvements */
+[data-theme="dark"] .text-center {
+  color: #D0D0D0;
+}
+
+[data-theme="dark"] i.fas,
+[data-theme="dark"] i.far,
+[data-theme="dark"] i.fab {
+  opacity: 0.9;
+}
+
+[data-theme="dark"] .card h5,
+[data-theme="dark"] .card h6 {
+  color: #F0F0F0 !important;
+}
+
+[data-theme="dark"] .card p {
+  color: #D0D0D0 !important;
+}
+
+[data-theme="dark"] .card .small {
+  color: #B0B0B0 !important;
+}
+
+[data-theme="dark"] .btn {
+  color: white !important;
+}
+
+[data-theme="dark"] .btn-outline-secondary {
+  color: var(--primary-color) !important;
+  border-color: var(--primary-color);
+}
+
+[data-theme="dark"] .btn-outline-secondary:hover {
+  background-color: var(--primary-color);
+  color: white !important;
+}
+
+[data-theme="dark"] .btn-outline-dark {
+  color: #E0E0E0 !important;
+  border-color: #E0E0E0;
+}
+
+[data-theme="dark"] .btn-outline-dark:hover {
+  background-color: #E0E0E0;
+  color: #121212 !important;
+}
+
+[data-theme="dark"] .visually-hidden {
+  color: transparent !important;
+}
+
+[data-theme="dark"] .list-group-item strong {
+  color: #F5F5F5 !important;
+}
+
+[data-theme="dark"] .card-body h6 {
+  color: #E8E8E8 !important;
+}
+
+[data-theme="dark"] .form-text {
+  color: #A0A0A0 !important;
+}
+
+[data-theme="dark"] .text-success {
+  color: #81C784 !important;
+}
+
+[data-theme="dark"] .text-danger {
+  color: #EF5350 !important;
+}
+
+[data-theme="dark"] .text-warning {
+  color: #FFB74D !important;
+}
+
+[data-theme="dark"] .text-info {
+  color: #4DD0E1 !important;
+}
+
+[data-theme="dark"] .text-primary {
+  color: #42A5F5 !important;
+}
+
+[data-theme="dark"] .text-secondary {
+  color: #B0BEC5 !important;
+}
+
+/* Ensure card headers in dark theme have proper contrast */
+[data-theme="dark"] .card-header h5 {
+  color: white !important;
+}
+
+[data-theme="dark"] .card-header {
+  color: white !important;
+}
+
+/* User panel special styling for dark theme */
+[data-theme="dark"] #user-panel .card-header {
+  background: linear-gradient(135deg, #1E3A5F 0%, #2C5282 100%) !important;
+  color: white !important;
+}
+
+[data-theme="dark"] #user-panel .card-body {
+  background: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] #user-panel .card-body h5,
+[data-theme="dark"] #user-panel .card-body p {
+  color: var(--text-primary) !important;
+}
+
+/* Improve icon colors in dark theme */
+[data-theme="dark"] .fa-user-doctor,
+[data-theme="dark"] .fa-stethoscope,
+[data-theme="dark"] .fa-user-md {
+  color: #42A5F5 !important;
+}
+
+[data-theme="dark"] .fa-envelope,
+[data-theme="dark"] .fa-phone,
+[data-theme="dark"] .fa-map-marker-alt,
+[data-theme="dark"] .fa-clock {
+  color: #B0B0B0 !important;
+}
+
+/* Make badges more visible in dark theme */
+[data-theme="dark"] .badge.bg-success {
+  background: linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%) !important;
+  color: white !important;
+  font-weight: 600;
+}
+
+[data-theme="dark"] .badge.bg-info {
+  background: linear-gradient(135deg, #42A5F5 0%, #29B6F6 100%) !important;
+  color: white !important;
+  font-weight: 600;
+}
+
+[data-theme="dark"] .badge.bg-danger {
+  background: linear-gradient(135deg, #F44336 0%, #E53935 100%) !important;
+  color: white !important;
+  font-weight: 600;
+}
+
+[data-theme="dark"] .badge.bg-warning {
+  background: linear-gradient(135deg, #FFA726 0%, #FF9800 100%) !important;
+  color: #1E1E1E !important;
+  font-weight: 600;
+}
+
+/* Improve doctor list items in dark theme */
+[data-theme="dark"] .doctor-item {
+  color: #E0E0E0 !important;
+}
+
+[data-theme="dark"] .doctor-item i {
+  color: #42A5F5 !important;
+}
+
+[data-theme="dark"] .doctor-item .badge {
+  background-color: #4CAF50 !important;
+  color: white !important;
+}
+
+/* Calendar improvements for dark theme */
+[data-theme="dark"] .calendar-day h6 {
+  color: #E0E0E0 !important;
+}
+
+[data-theme="dark"] .time-slot {
+  color: #D0D0D0 !important;
+  background-color: #2A2A2A;
+  border: 1px solid #3A3A3A;
+}
+
+[data-theme="dark"] .time-slot:disabled {
+  color: #666 !important;
+  background-color: #1E1E1E;
+}
+
+/* Spinner in dark theme */
+[data-theme="dark"] .spinner-border {
+  border-color: rgba(66, 165, 245, 0.2);
+  border-right-color: #42A5F5;
+}
 

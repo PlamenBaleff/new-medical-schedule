@@ -75,6 +75,30 @@ function buildSettingsHTML(currentUser) {
           </div>
         </div>
         
+        <!-- Theme Settings Card -->
+        <div class="card shadow-sm mb-4">
+          <div class="card-header" style="background: linear-gradient(135deg, #66BB6A 0%, #4CAF50 100%); color: white;">
+            <h5 class="mb-0"><i class="fas fa-palette" style="font-size: 20px; margin-right: 8px;"></i> Тема</h5>
+          </div>
+          <div class="card-body">
+            <p class="mb-3"><i class="fas fa-moon" style="margin-right: 6px;"></i> Изберете тема за приложението:</p>
+            <div class="d-flex gap-3">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="theme" id="theme-light" value="light" checked>
+                <label class="form-check-label" for="theme-light">
+                  <i class="fas fa-sun" style="margin-right: 6px; color: #FFA726;"></i> Светла тема
+                </label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="theme" id="theme-dark" value="dark">
+                <label class="form-check-label" for="theme-dark">
+                  <i class="fas fa-moon" style="margin-right: 6px; color: #42A5F5;"></i> Тъмна тема
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+        
         <!-- About Card -->
         <div class="card shadow-sm">
           <div class="card-header" style="background: linear-gradient(135deg, #90A4AE 0%, #78909C 100%); color: white;">
@@ -92,6 +116,30 @@ function buildSettingsHTML(currentUser) {
 }
 
 function setupSettingsHandlers(currentUser, container) {
+  // Setup theme switcher
+  const themeLight = container.querySelector('#theme-light')
+  const themeDark = container.querySelector('#theme-dark')
+  
+  // Load saved theme
+  const savedTheme = localStorage.getItem('theme') || 'light'
+  if (savedTheme === 'dark') {
+    themeDark.checked = true
+    document.documentElement.setAttribute('data-theme', 'dark')
+  } else {
+    themeLight.checked = true
+    document.documentElement.setAttribute('data-theme', 'light')
+  }
+  
+  // Handle theme change
+  const handleThemeChange = (e) => {
+    const theme = e.target.value
+    document.documentElement.setAttribute('data-theme', theme)
+    localStorage.setItem('theme', theme)
+  }
+  
+  themeLight.addEventListener('change', handleThemeChange)
+  themeDark.addEventListener('change', handleThemeChange)
+  
   // Load user profile data
   setTimeout(async () => {
     const profileCard = container.querySelector('#profile-card')

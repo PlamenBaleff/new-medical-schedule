@@ -2,9 +2,18 @@
 import { initRouter } from './services/router.js'
 import { initAuth } from './services/auth.js'
 
+// Load theme preference
+function loadTheme() {
+  const savedTheme = localStorage.getItem('theme') || 'light'
+  document.documentElement.setAttribute('data-theme', savedTheme)
+}
+
 // Initialize the application
 async function init() {
   try {
+    // Load theme first
+    loadTheme()
+    
     // Initialize authentication
     await initAuth()
     

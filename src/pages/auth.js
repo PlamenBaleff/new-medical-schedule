@@ -11,7 +11,7 @@ export default function AuthPage() {
 
   container.innerHTML = `
     <div id="auth-user-panel" class="card shadow-sm mb-3" style="display: none;">
-      <div class="card-header" style="background: linear-gradient(135deg, #ECEFF1 0%, #CFD8DC 100%); color: #263238;">
+      <div class="card-header">
         <div class="d-flex justify-content-between align-items-center">
           <h5 class="mb-0"><i class="fas fa-user-check" style="font-size: 20px; margin-right: 8px;"></i> Профил</h5>
           <button class="btn btn-sm btn-outline-dark" type="button" id="auth-logout-btn">
