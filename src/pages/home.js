@@ -1,6 +1,7 @@
 import { supabase } from '../services/supabase.js'
 import { eventBus, EVENTS } from '../services/eventBus.js'
 import { ensureProfileForAuthUser } from '../services/pendingProfile.js'
+import { navigateTo } from '../services/router.js'
 
 let selectedDoctor = null
 let currentUser = null
@@ -185,6 +186,7 @@ async function loadDoctors() {
     
     if (error) {
       console.warn('Supabase error (RLS policy issue):', error.message)
+      console.log('Doctors data despite error:', doctors)
       // Even if there's an error, doctors might still load with public access
       // So we don't throw, we continue
       if (!doctors || doctors.length === 0) {
@@ -193,6 +195,7 @@ async function loadDoctors() {
     }
     
     if (doctors && doctors.length > 0) {
+      console.log('Successfully loaded doctors:', doctors.map(d => d.name))
       renderDoctorsList(doctors, doctorsList)
       return // Successfully loaded, no need for demo data
     } else {
@@ -200,6 +203,7 @@ async function loadDoctors() {
     }
   } catch (error) {
     console.error('Error loading doctors from database:', error.message)
+    console.error('Full error object:', error)
     
     // Show demo doctors only if Supabase completely fails
     const demoDoctors = [
@@ -654,7 +658,7 @@ window.logout = async () => {
   const bookingPanel = document.getElementById('booking-panel')
   if (bookingPanel) bookingPanel.style.display = 'none'
 
-  window.location.hash = '#auth'
+  navigateTo('/auth')
 }
 
 // ===================================================
@@ -672,9 +676,11 @@ window.showAdminPanel = async () => {
           <div class="card-header bg-danger text-white">
             <div class="d-flex justify-content-between align-items-center">
               <h5 class="mb-0"><i class="fas fa-shield-alt" style="font-size: 20px; margin-right: 8px;"></i> Администраторски панел</h5>
-              <button class="btn btn-sm btn-outline-light" onclick="window.location.reload()">
-                <i class="fas fa-home" style="margin-right: 6px;"></i> Назад
-              </button>
+              <div>
+                <button class="btn btn-sm btn-outline-light" onclick="window.location.reload()">
+                  <i class="fas fa-home" style="margin-right: 6px;"></i> Назад
+                </button>
+              </div>
             </div>
           </div>
           <div class="card-body">
@@ -1005,7 +1011,7 @@ window.deleteDoctor = async (doctorId) => {
       .eq('id', doctorId)
     
     if (error) throw error
-    alert('Лекарят е изтрит успешно!')
+    alert('Лекарят е изтрит успешно!\n\nЗабележка: Потребителският акаунт в системата остава активен. Ако искате да го деактивирате напълно, проведете следните стъпки в Supabase конзолата:\n1. Отидете на Authentication → Users\n2. Намерете потребителя по email\n3. Натиснете Delete User')
     window.showAdminPanel()
   } catch (error) {
     alert('Грешка при изтриване: ' + error.message)
@@ -1022,7 +1028,7 @@ window.deletePatient = async (patientId) => {
       .eq('id', patientId)
     
     if (error) throw error
-    alert('Пациентът е изтрит успешно!')
+    alert('Пациентът е изтрит успешно!\n\nЗабележка: Потребителският акаунт в системата остава активен. Ако искате да го деактивирате напълно, проведете следните стъпки в Supabase конзолата:\n1. Отидете на Authentication → Users\n2. Намерете потребителя по email\n3. Натиснете Delete User')
     window.showAdminPanel()
   } catch (error) {
     alert('Грешка при изтриване: ' + error.message)
@@ -1045,3 +1051,27 @@ window.deleteAppointment = async (appointmentId) => {
     alert('Грешка при изтриване: ' + error.message)
   }
 }
+
+// Function to show instructions for auth cleanup
+window.showAuthCleanupInstructions = () => {
+  const message = `ИНСТРУКЦИИ ЗА ИЗТРИВАНЕ НА ОСИРОТЕЛИ АКАУНТИ
+
+Потребителските акаунти в Authentication системата не могат да се изтрият директно от приложението.
+
+За да изтриете осиротели акаунти, следвайте следните стъпки в Supabase конзолата:
+
+1. Отворете вашия Supabase проект
+2. Отидете на вкладката "Authentication"
+3. Изберете "Users"
+4. Намерете потребителя по email
+5. Натиснете иконката с три точки (⋯)
+6. Изберете "Delete User"
+
+Алтернативно, ако имате dostup до командния ред на Supabase:
+- Използвайте Supabase CLI: supabase auth users delete <user-id>
+
+Нужна помощ? Проверете документацията на Supabase на https://supabase.com/docs`;
+  
+  alert(message)
+}
+

@@ -3,6 +3,7 @@ import { logout } from '../services/auth.js'
 import { getDoctorByEmail, getPatientByEmail, updateDoctor, updatePatient, createDoctor, createPatient } from '../services/supabase.js'
 import { eventBus, EVENTS } from '../services/eventBus.js'
 import { supabase } from '../services/supabase.js'
+import { navigateTo } from '../services/router.js'
 
 export default function SettingsPage() {
   const container = document.createElement('div')
@@ -319,7 +320,7 @@ function setupSettingsHandlers(currentUser, container) {
         logoutBtn.addEventListener('click', async () => {
           try {
             await logout()
-            window.location.hash = '#home'
+            navigateTo('/home')
           } catch (error) {
             console.error('Logout error:', error)
           }

@@ -1,4 +1,4 @@
-// Router for page navigation
+// Router for page navigation using History API
 import HomePage from '../pages/home.js'
 import AuthPage from '../pages/auth.js'
 import SchedulePage from '../pages/schedule.js'
@@ -6,35 +6,42 @@ import DoctorsPage from '../pages/doctors.js'
 import SettingsPage from '../pages/settings.js'
 
 const routes = {
-  auth: { page: AuthPage, title: 'Вход / Регистрация' },
-  home: { page: HomePage, title: 'Home' },
-  schedule: { page: SchedulePage, title: 'Schedule' },
-  doctors: { page: DoctorsPage, title: 'Doctors' },
-  settings: { page: SettingsPage, title: 'Settings' }
+  '/': { page: AuthPage, title: 'Вход / Регистрация', navId: 'nav-auth' },
+  '/auth': { page: AuthPage, title: 'Вход / Регистрация', navId: 'nav-auth' },
+  '/home': { page: HomePage, title: 'Home', navId: 'nav-home' },
+  '/schedule': { page: SchedulePage, title: 'Schedule', navId: 'nav-schedule' },
+  '/doctors': { page: DoctorsPage, title: 'Doctors', navId: 'nav-doctors' },
+  '/settings': { page: SettingsPage, title: 'Settings', navId: 'nav-settings' }
 }
 
 const app = document.getElementById('app')
 
 export function initRouter() {
-  // Handle hash changes
-  window.addEventListener('hashchange', navigate)
+  // Handle popstate (back/forward buttons)
+  window.addEventListener('popstate', () => {
+    navigate(window.location.pathname)
+  })
   
-  // Navigate to auth by default
-  if (!window.location.hash) {
-    window.location.hash = '#auth'
-  } else {
-    navigate()
-  }
+  // Handle link clicks
+  document.addEventListener('click', (e) => {
+    if (e.target.matches('[data-link]') || e.target.closest('[data-link]')) {
+      e.preventDefault()
+      const link = e.target.matches('[data-link]') ? e.target : e.target.closest('[data-link]')
+      navigateTo(link.getAttribute('href'))
+    }
+  })
+  
+  // Initial navigation
+  navigate(window.location.pathname)
 }
 
-export function navigate() {
-  const hash = window.location.hash.slice(1) || 'auth'
-  const route = routes[hash]
-  
-  if (!route) {
-    window.location.hash = '#auth'
-    return
-  }
+export function navigateTo(path) {
+  window.history.pushState({}, '', path)
+  navigate(path)
+}
+
+export function navigate(path = window.location.pathname) {
+  const route = routes[path] || routes['/auth']
   
   // Clear app container
   app.innerHTML = ''
@@ -52,5 +59,7 @@ export function navigate() {
   document.querySelectorAll('.nav-link').forEach(link => {
     link.classList.remove('active')
   })
-  document.getElementById(`nav-${hash}`)?.classList.add('active')
+  if (route.navId) {
+    document.getElementById(route.navId)?.classList.add('active')
+  }
 }

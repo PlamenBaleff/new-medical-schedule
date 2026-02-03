@@ -51,7 +51,7 @@ export default function AuthPage() {
               </div>
               <div class="text-center mt-4">
                 <p class="text-muted">Вече имате профил?</p>
-                <button class="btn btn-outline-secondary" onclick="window.showLoginForm()">
+                <button class="btn btn-outline-secondary" style="padding-left: 8rem; padding-right: 8rem;" onclick="window.showLoginForm()">
                   <i class="fas fa-sign-in-alt" style="margin-right: 8px;"></i> Вход
                 </button>
               </div>
