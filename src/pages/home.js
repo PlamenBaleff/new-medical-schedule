@@ -7,6 +7,41 @@ let selectedDoctor = null
 let currentUser = null
 let isAdmin = false
 
+// Function to show patient complaints in a modal
+const showComplaintsModal = (patientName, complaints, appointmentTime) => {
+  const existingModal = document.getElementById('complaints-modal-home')
+  if (existingModal) existingModal.remove()
+
+  const modalDiv = document.createElement('div')
+  modalDiv.id = 'complaints-modal-home'
+  modalDiv.innerHTML = `
+    <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+      <div style="background: white; border-radius: 12px; padding: 24px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h5 style="margin: 0;"><i class="fas fa-clipboard-list" style="margin-right: 8px; color: #FF9800;"></i> Оплаквания на пациента</h5>
+          <button onclick="document.getElementById('complaints-modal-home').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #999;">&times;</button>
+        </div>
+        <hr style="margin: 12px 0; border: none; border-top: 1px solid #eee;">
+        <div style="margin-bottom: 16px;">
+          <p style="margin: 0 0 8px 0; color: #666; font-size: 0.9rem;">
+            <strong style="color: #333;">Пациент:</strong> ${patientName}
+          </p>
+          <p style="margin: 0 0 8px 0; color: #666; font-size: 0.9rem;">
+            <strong style="color: #333;">Час:</strong> ${appointmentTime.substring(0, 5)}
+          </p>
+        </div>
+        <div style="background: #F5F5F5; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+          <p style="margin: 0; color: #333; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word;">${complaints}</p>
+        </div>
+        <button onclick="document.getElementById('complaints-modal-home').remove()" style="width: 100%; padding: 10px; background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">
+          Затвори
+        </button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(modalDiv)
+}
+
 export default function HomePage() {
   const container = document.createElement('div')
   container.className = 'container-fluid py-4'
@@ -41,6 +76,18 @@ export default function HomePage() {
                   <span class="visually-hidden">Loading...</span>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Complaints Panel -->
+        <div id="complaints-panel" class="card shadow-sm" style="display: none;">
+          <div class="card-header" style="background: linear-gradient(135deg, #FFB74D 0%, #FFA726 100%); color: white;">
+            <h5 class="mb-0"><i class="fas fa-clipboard-list" style="font-size: 20px; margin-right: 8px;"></i> Оплаквания на пациента</h5>
+          </div>
+          <div class="card-body">
+            <div id="complaints-content">
+              <small class="text-muted">Изберете час, за да видите оплакванията</small>
             </div>
           </div>
         </div>
@@ -95,10 +142,17 @@ export default function HomePage() {
       try {
         const { data: appointments } = await supabase
           .from('appointments')
-          .select('*')
+          .select('id, appointment_time, complaints, patient_id, patients(name, email)')
           .eq('doctor_id', doctor.id)
           .eq('appointment_date', date);
-        const bookedTimes = (appointments || []).map(a => a.appointment_time.substring(0,5));
+        
+        const appointmentMap = {};
+        if (appointments) {
+          appointments.forEach(a => {
+            appointmentMap[a.appointment_time.substring(0, 5)] = a;
+          });
+        }
+        
         const workFrom = doctor.work_hours_from || '08:00';
         const workTo = doctor.work_hours_to || '17:00';
         const startHour = parseInt(workFrom.split(':')[0]);
@@ -107,9 +161,20 @@ export default function HomePage() {
         const user = currentUser;
         for (let h = startHour; h < endHour; h++) {
           const t = `${String(h).padStart(2,'0')}:00`;
-          const isBooked = bookedTimes.includes(t);
-          if (isBooked) {
-            html += `<div class="mb-2"><button class="btn btn-danger btn-lg w-100" disabled style="font-size:1.1rem;"><i class="fas fa-times-circle"></i> ${t} - Запазен</button></div>`;
+          const appointment = appointmentMap[t];
+          
+          if (appointment) {
+            const patientName = appointment.patients?.name || 'Неизвестен';
+            const shortComplaints = appointment.complaints?.substring(0, 20) + (appointment.complaints?.length > 20 ? '...' : '') || 'Без описание';
+            const appointmentId = appointment.id;
+            
+            if (user && user.user_type === 'doctor') {
+              // Doctor - show patient info and complaints button
+              html += `<div class="mb-2"><button class="btn btn-danger btn-lg w-100 show-complaints-btn" data-appointment-id="${appointmentId}" style="font-size:1rem; text-align: left; cursor: pointer;"><i class="fas fa-user-check"></i> ${t} - ${patientName}<br/><small style="margin-left: 22px; font-style: italic;">${shortComplaints}</small></button></div>`;
+            } else {
+              // Admin - show patient info and make clickable to show complaints in side panel
+              html += `<div class="mb-2"><button class="btn btn-danger btn-lg w-100 show-complaints-side-btn" data-appointment-id="${appointmentId}" data-patient-name="${patientName}" data-complaints="${appointment.complaints || ''}" data-time="${t}" style="font-size:1rem; text-align: left; cursor: pointer;"><i class="fas fa-user-check"></i> ${t} - ${patientName}<br/><small style="margin-left: 22px; font-style: italic;">${shortComplaints}</small></button></div>`;
+            }
           } else if (user && user.user_type === 'patient') {
             html += `<div class="mb-2"><button class="btn btn-success btn-lg w-100 book-slot-btn" data-time="${t}" style="font-size:1.1rem;"><i class="fas fa-check-circle"></i> ${t} - Свободен</button></div>`;
           } else {
@@ -117,6 +182,57 @@ export default function HomePage() {
           }
         }
         slotsDiv.innerHTML = html;
+        
+        // Add event listeners for complaint buttons (doctor view)
+        slotsDiv.querySelectorAll('.show-complaints-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const appointmentId = btn.dataset.appointmentId;
+            const { data: appt } = await supabase
+              .from('appointments')
+              .select('id, appointment_time, complaints, patient_id, patients(name, email)')
+              .eq('id', appointmentId)
+              .single();
+            
+            if (appt) {
+              showComplaintsModal(
+                appt.patients?.name || 'Неизвестен',
+                appt.complaints || 'Без описание',
+                appt.appointment_time
+              );
+            }
+          });
+        });
+
+        // Add event listeners for complaint buttons (admin view - show in side panel)
+        slotsDiv.querySelectorAll('.show-complaints-side-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const patientName = btn.dataset.patientName;
+            const complaints = btn.dataset.complaints;
+            const time = btn.dataset.time;
+            
+            const complaintPanel = container.querySelector('#complaints-panel');
+            const complaintsContent = container.querySelector('#complaints-content');
+            
+            if (complaintPanel && complaintsContent) {
+              complaintPanel.style.display = 'block';
+              complaintsContent.innerHTML = `
+                <div style="margin-bottom: 12px;">
+                  <p style="margin: 0 0 8px 0; color: #666;">
+                    <strong style="color: #333;">Пациент:</strong> ${patientName}
+                  </p>
+                  <p style="margin: 0 0 8px 0; color: #666;">
+                    <strong style="color: #333;">Час:</strong> ${time}
+                  </p>
+                </div>
+                <hr style="margin: 12px 0; border: none; border-top: 1px solid #eee;">
+                <div style="background: #F5F5F5; padding: 12px; border-radius: 8px;">
+                  <p style="margin: 0; color: #333; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; font-size: 0.95rem;">${complaints}</p>
+                </div>
+              `;
+            }
+          });
+        });
+        
         // Добавям click handler-и за записване на час
         if (user && user.user_type === 'patient') {
           slotsDiv.querySelectorAll('.book-slot-btn').forEach(btn => {

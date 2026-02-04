@@ -1,5 +1,5 @@
 // Schedule page component
-import { getDoctors } from '../services/supabase.js'
+import { getDoctors, supabase } from '../services/supabase.js'
 import { eventBus, EVENTS } from '../services/eventBus.js'
 
 export default function SchedulePage() {
@@ -9,6 +9,8 @@ export default function SchedulePage() {
   // Variables for calendar
   let currentDate = new Date()
   let selectedDate = null
+  let currentUser = null
+  let currentDoctor = null
 
   container.innerHTML = `
     <div style="display: grid; grid-template-columns: 1fr 350px; gap: 20px; grid-auto-flow: row;">
@@ -33,14 +35,18 @@ export default function SchedulePage() {
         <!-- Info Panel -->
         <div class="card shadow-sm mb-4" style="border: none; border-radius: 16px; background: linear-gradient(135deg, #E8F5E9 0%, #F1F8E9 100%);">
           <div class="card-header" style="background: linear-gradient(135deg, #81C784 0%, #66BB6A 100%); color: white; border-radius: 16px 16px 0 0; padding: 12px 15px;">
-            <h5 class="mb-0" style="font-size: 1rem;"><i class="fas fa-info-circle" style="margin-right: 8px;"></i> Информация</h5>
+            <h5 class="mb-0" style="font-size: 1rem;"><i class="fas fa-info-circle" style="margin-right: 8px;"></i> График за дата</h5>
           </div>
           <div class="card-body" style="padding: 12px 15px;">
             <div class="mb-3">
+              <label class="form-label" style="font-size: 0.85rem; margin-bottom: 6px;"><strong>Изберете дата:</strong></label>
+              <input type="date" id="schedule-date-picker" class="form-control" style="font-size: 0.9rem; padding: 6px 10px;">
+            </div>
+            <div class="mb-3">
               <h6 class="mb-2" style="font-size: 0.9rem;"><i class="fas fa-circle-info" style="margin-right: 6px; color: #4FC3F7;"></i> <strong>Легенда</strong></h6>
               <div class="mb-2">
-                <span class="badge" style="background-color: #EF5350; color: white; padding: 6px 10px; font-size: 0.75rem;">Заразен</span>
-                <small class="d-block text-muted mt-1" style="font-size: 0.75rem;">Времето не е налично</small>
+                <span class="badge" style="background-color: #FF9800; color: white; padding: 6px 10px; font-size: 0.75rem;">Запазен</span>
+                <small class="d-block text-muted mt-1" style="font-size: 0.75rem;">Има пациент - кликни за оплаквания</small>
               </div>
               <div>
                 <span class="badge" style="background-color: #66BB6A; color: white; padding: 6px 10px; font-size: 0.75rem;">Свободен</span>
@@ -51,7 +57,7 @@ export default function SchedulePage() {
             <hr class="my-2" style="margin: 10px 0;">
 
             <div class="mb-3">
-              <h6 class="mb-2" style="font-size: 0.9rem;"><i class="fas fa-users" style="margin-right: 6px; color: #FFB74D;"></i> <strong>Лекари</strong></h6>
+              <h6 class="mb-2" style="font-size: 0.9rem;"><i class="fas fa-users" style="margin-right: 6px; color: #FFB74D;"></i> <strong id="doctor-info-title">Лекари</strong></h6>
               <p class="text-center mb-0">
                 <span class="badge bg-primary p-2" style="font-size: 0.9rem;" id="doctor-count">-</span>
               </p>
@@ -213,20 +219,68 @@ export default function SchedulePage() {
     })
   }
 
-  // Function to load and display schedule
-  const loadSchedule = async () => {
+  // Function to load and display schedule with real appointments
+  const loadSchedule = async (dateStr = null) => {
     const tableContainer = container.querySelector('#schedule-table')
     if (!tableContainer) return
     
+    // Use provided date or get from date picker, default to today
+    const dateInput = container.querySelector('#schedule-date-picker')
+    const displayDate = dateStr || (dateInput?.value) || new Date().toISOString().split('T')[0]
+    
     try {
-      const doctors = await getDoctors()
-      if (!doctors || doctors.length === 0) {
+      // Check current user
+      const { data: { user } } = await supabase.auth.getUser()
+      currentUser = user
+      
+      let doctorsToDisplay = []
+      
+      if (user && user.user_metadata?.user_type === 'doctor') {
+        // If doctor, show only their own schedule
+        const { data: doctorProfile } = await supabase
+          .from('doctors')
+          .select('*')
+          .eq('email', user.email)
+          .single()
+        
+        if (doctorProfile) {
+          doctorsToDisplay = [doctorProfile]
+          currentDoctor = doctorProfile
+          
+          // Update header to show it's the doctor's own schedule
+          const titleEl = container.querySelector('h1')
+          if (titleEl) {
+            titleEl.innerHTML = `<i class="fas fa-calendar-week" style="font-size: 28px; margin-right: 12px;"></i> Моят график - ${doctorProfile.name}`
+          }
+        }
+      } else {
+        // If not a doctor, show all doctors
+        const allDoctors = await getDoctors()
+        doctorsToDisplay = allDoctors || []
+      }
+      
+      if (!doctorsToDisplay || doctorsToDisplay.length === 0) {
         tableContainer.innerHTML = '<div class="text-center text-muted">Няма регистрирани лекари.</div>'
         return
       }
 
-      const rows = doctors.map(doc => {
+      const rows = await Promise.all(doctorsToDisplay.map(async (doc) => {
         const hours = `${doc.work_hours_from || '08:00'} - ${doc.work_hours_to || '17:00'}`
+        
+        // Get appointments for this doctor on selected date
+        const { data: appointments, error: apptError } = await supabase
+          .from('appointments')
+          .select('id, appointment_time, complaints, patient_id, patients(name, email)')
+          .eq('doctor_id', doc.id)
+          .eq('appointment_date', displayDate)
+          .order('appointment_time')
+        
+        const appointmentMap = {}
+        if (appointments && !apptError) {
+          appointments.forEach(appt => {
+            appointmentMap[appt.appointment_time.substring(0, 5)] = appt
+          })
+        }
         
         const timeSlots = []
         const startHour = parseInt(doc.work_hours_from?.split(':')[0] || '08')
@@ -234,17 +288,32 @@ export default function SchedulePage() {
         
         for (let i = startHour; i < endHour; i++) {
           const timeStr = `${String(i).padStart(2, '0')}:00`
-          const isFree = Math.random() > 0.5
-          const badgeColor = isFree ? '#66BB6A' : '#EF5350'
-          const badgeText = isFree ? 'Свободен' : 'Заразен'
-          timeSlots.push(`
-            <div class="time-slot mb-2">
-              <button class="btn btn-sm w-100" style="background-color: ${badgeColor}; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; text-align: left;">
-                <i class="fas ${isFree ? 'fa-check-circle' : 'fa-times-circle'}" style="margin-right: 6px;"></i>
-                <strong>${timeStr}</strong> - ${badgeText}
-              </button>
-            </div>
-          `)
+          const appointment = appointmentMap[timeStr]
+          
+          if (appointment) {
+            const patientName = appointment.patients?.name || 'Неизвестен пациент'
+            const shortComplaints = appointment.complaints?.substring(0, 25) + (appointment.complaints?.length > 25 ? '...' : '') || 'Без описание'
+            const appointmentId = appointment.id
+            
+            timeSlots.push(`
+              <div class="time-slot mb-2">
+                <button class="btn btn-sm w-100 appointment-btn" style="background-color: #FF9800; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; text-align: left; cursor: pointer;" data-appointment-id="${appointmentId}" title="Кликни за всички оплаквания">
+                  <i class="fas fa-user-check" style="margin-right: 6px;"></i>
+                  <strong>${timeStr}</strong> - ${patientName}
+                  <br><small style="margin-left: 22px; display: block; font-size: 0.75rem; font-style: italic;">${shortComplaints}</small>
+                </button>
+              </div>
+            `)
+          } else {
+            timeSlots.push(`
+              <div class="time-slot mb-2">
+                <button class="btn btn-sm w-100" style="background-color: #66BB6A; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; text-align: left;" disabled>
+                  <i class="fas fa-check-circle" style="margin-right: 6px;"></i>
+                  <strong>${timeStr}</strong> - Свободен
+                </button>
+              </div>
+            `)
+          }
         }
         
         return `
@@ -258,20 +327,60 @@ export default function SchedulePage() {
                 <small class="text-muted d-block mb-3">
                   <i class="fas fa-clock" style="margin-right: 4px;"></i> ${hours}
                 </small>
+                <small class="text-info d-block mb-2">
+                  <i class="fas fa-calendar" style="margin-right: 4px;"></i> Днес
+                </small>
                 ${timeSlots.join('')}
               </div>
             </div>
           </div>
         `
-      }).join('')
+      }))
 
-      tableContainer.innerHTML = `<div class="row" id="doctors-schedule-grid">${rows}</div>`
+      tableContainer.innerHTML = `<div class="row" id="doctors-schedule-grid">${rows.join('')}</div>`
+
+      // Add event listeners for appointment buttons
+      document.querySelectorAll('.appointment-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const appointmentId = btn.dataset.appointmentId
+          const { data: appointment } = await supabase
+            .from('appointments')
+            .select('id, appointment_time, complaints, patient_id, patients(name, email)')
+            .eq('id', appointmentId)
+            .single()
+          
+          if (appointment) {
+            showComplaintsModal(
+              appointment.patients?.name || 'Неизвестен',
+              appointment.complaints || 'Без описание',
+              appointment.appointment_time
+            )
+          }
+        })
+      })
 
       const doctorCountBadge = container.querySelector('#doctor-count')
-      if (doctorCountBadge) {
-        doctorCountBadge.textContent = doctors.length
+      const doctorInfoTitle = container.querySelector('#doctor-info-title')
+      
+      if (currentUser && currentUser.user_metadata?.user_type === 'doctor') {
+        // Doctor view - show their specialty and working hours
+        if (doctorInfoTitle) {
+          doctorInfoTitle.textContent = 'Моята специалност'
+        }
+        if (doctorCountBadge) {
+          doctorCountBadge.textContent = currentDoctor?.specialty || 'Лекар'
+        }
+      } else {
+        // Admin view - show doctor count
+        if (doctorInfoTitle) {
+          doctorInfoTitle.textContent = 'Лекари'
+        }
+        if (doctorCountBadge) {
+          doctorCountBadge.textContent = doctorsToDisplay.length
+        }
       }
     } catch (error) {
+      console.error('Error loading schedule:', error)
       const tableContainer = container.querySelector('#schedule-table')
       if (tableContainer) {
         tableContainer.innerHTML = '<div class="alert alert-warning">Неуспешно зареждане на графика.</div>'
@@ -279,8 +388,56 @@ export default function SchedulePage() {
     }
   }
 
+  // Function to show complaints modal
+  const showComplaintsModal = (patientName, complaints, appointmentTime) => {
+    const existingModal = document.getElementById('complaints-modal')
+    if (existingModal) existingModal.remove()
+
+    const modalDiv = document.createElement('div')
+    modalDiv.id = 'complaints-modal'
+    modalDiv.innerHTML = `
+      <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+        <div style="background: white; border-radius: 12px; padding: 24px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h5 style="margin: 0;"><i class="fas fa-clipboard-list" style="margin-right: 8px; color: #4FC3F7;"></i> Оплаквания на пациента</h5>
+            <button onclick="document.getElementById('complaints-modal').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #999;">&times;</button>
+          </div>
+          <hr style="margin: 12px 0; border: none; border-top: 1px solid #eee;">
+          <div style="margin-bottom: 16px;">
+            <p style="margin: 0 0 8px 0; color: #666; font-size: 0.9rem;">
+              <strong style="color: #333;">Пациент:</strong> ${patientName}
+            </p>
+            <p style="margin: 0 0 8px 0; color: #666; font-size: 0.9rem;">
+              <strong style="color: #333;">Час:</strong> ${appointmentTime.substring(0, 5)}
+            </p>
+          </div>
+          <div style="background: #F5F5F5; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+            <p style="margin: 0; color: #333; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word;">${complaints}</p>
+          </div>
+          <button onclick="document.getElementById('complaints-modal').remove()" style="width: 100%; padding: 10px; background: linear-gradient(135deg, #4FC3F7 0%, #29B6F6 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">
+            Затвори
+          </button>
+        </div>
+      </div>
+    `
+    document.body.appendChild(modalDiv)
+  }
+
   // Винаги визуализирай календара, независимо от графика
-  setTimeout(() => renderCalendar(), 0)
+  setTimeout(() => {
+    renderCalendar()
+    
+    // Initialize date picker with today's date
+    const datePicker = container.querySelector('#schedule-date-picker')
+    if (datePicker) {
+      const today = new Date().toISOString().split('T')[0]
+      datePicker.value = today
+      datePicker.addEventListener('change', () => {
+        loadSchedule()
+      })
+    }
+  }, 0)
+  
   // Зареди графика
   loadSchedule()
 
