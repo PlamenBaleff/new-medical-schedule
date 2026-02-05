@@ -23,15 +23,15 @@ export default function AuthPage() {
         <div id="auth-user-info"></div>
       </div>
     </div>
-    <div class="row justify-content-center">
-      <div class="col-lg-8">
-        <div id="auth-panel" class="card shadow-sm">
+    <div class="row justify-content-center mt-5" style="margin-top: 5rem;">
+      <div class="col-lg-9">
+        <div id="auth-panel" class="card shadow-sm" style="min-height: 480px;">
           <div class="card-header" style="background: linear-gradient(135deg, #81C784 0%, #66BB6A 100%); color: white;">
             <h5 class="mb-0"><i class="fas fa-user-circle" style="font-size: 20px; margin-right: 8px;"></i> Вход / Регистрация</h5>
           </div>
-          <div class="card-body">
+          <div class="card-body text-center d-flex flex-column justify-content-center" style="padding-bottom: 2rem; min-height: 360px;">
             <!-- User Type Selection -->
-            <div id="user-type-selection">
+            <div id="user-type-selection" class="w-100">
               <div class="text-center mb-4">
                 <h6>Изберете вашия тип профил:</h6>
               </div>
@@ -49,9 +49,9 @@ export default function AuthPage() {
                   </button>
                 </div>
               </div>
-              <div class="text-center mt-4">
-                <p class="text-muted">Вече имате профил?</p>
-                <button class="btn btn-outline-secondary" style="padding-left: 8rem; padding-right: 8rem;" onclick="window.showLoginForm()">
+              <div class="text-center mt-5">
+                <p class="text-muted fs-5">Вече имате профил?</p>
+                <button class="btn btn-outline-secondary btn-lg" style="padding-left: 9rem; padding-right: 9rem;" onclick="window.showLoginForm()">
                   <i class="fas fa-sign-in-alt" style="margin-right: 8px;"></i> Вход
                 </button>
               </div>
