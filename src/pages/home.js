@@ -814,7 +814,7 @@ window.showAdminPanel = async () => {
               </li>
               <li class="nav-item" role="presentation">
                 <button class="nav-link" id="appointments-tab" data-bs-toggle="tab" data-bs-target="#appointments-panel" type="button" role="tab">
-                  <i class="fas fa-calendar-check" style="margin-right: 6px;"></i> Записи
+                  <i class="fas fa-calendar-check" style="margin-right: 6px;"></i> Записани часове
                 </button>
               </li>
               <li class="nav-item" role="presentation">
