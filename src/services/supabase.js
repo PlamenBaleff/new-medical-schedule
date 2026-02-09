@@ -2,8 +2,8 @@
 import { createClient } from '@supabase/supabase-js'
 
 // TODO: Add your Supabase credentials
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co'
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmYWhlcWxjeXJ1a2VoeG9kdGRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2OTg3MTcsImV4cCI6MjA4NTI3NDcxN30.bUlR8_4uQmrXz1pEGLdoP-n25x2MhDIY_P4VJpCa4pQ";
+export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co'
+export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmYWhlcWxjeXJ1a2VoeG9kdGRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2OTg3MTcsImV4cCI6MjA4NTI3NDcxN30.bUlR8_4uQmrXz1pEGLdoP-n25x2MhDIY_P4VJpCa4pQ";
 
 // Debug logging
 console.log('=== SUPABASE DEBUG ===')

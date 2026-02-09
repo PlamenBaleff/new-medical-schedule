@@ -1,0 +1,7 @@
+# Supabase project configuration
+#
+# Per-function Edge Function settings:
+# https://supabase.com/docs/guides/functions/function-configuration
+
+[functions.delete-user]
+verify_jwt = false

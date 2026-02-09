@@ -203,11 +203,20 @@ USING (
 -- APPOINTMENTS TABLE RLS
 ALTER TABLE appointments ENABLE ROW LEVEL SECURITY;
 
--- Policy: Allow public read access to appointments
-CREATE POLICY "Allow public read access to appointments"
+-- Privacy: appointment details must be visible only to admins and the specific doctor.
+-- Do NOT allow public read access to appointments.
+
+-- Policy: Allow doctors to read their own appointments
+CREATE POLICY "Allow doctors to read own appointments"
 ON appointments FOR SELECT
-TO public
-USING (true);
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM doctors
+    WHERE doctors.id = appointments.doctor_id
+      AND doctors.email = auth.email()
+  )
+);
 
 -- Policy: Allow authenticated users to insert appointments
 CREATE POLICY "Allow authenticated users to insert appointments"

@@ -1,4 +1,4 @@
-import { supabase } from '../services/supabase.js'
+import { supabase, SUPABASE_ANON_KEY, SUPABASE_URL } from '../services/supabase.js'
 import { eventBus, EVENTS } from '../services/eventBus.js'
 import { ensureProfileForAuthUser } from '../services/pendingProfile.js'
 import { navigateTo } from '../services/router.js'
@@ -152,14 +152,21 @@ export default function HomePage() {
       // Зареждане на часовете за избрания лекар и ден
       try {
         const canViewDetails = canViewAppointmentDetails(currentUser, doctor.id)
-        const appointmentSelect = canViewDetails
-          ? 'id, appointment_time, complaints, patient_id, patients(name, email)'
-          : 'id, appointment_time'
-        const { data: appointments } = await supabase
-          .from('appointments')
-          .select(appointmentSelect)
-          .eq('doctor_id', doctor.id)
-          .eq('appointment_date', date);
+        let appointments = []
+        if (canViewDetails) {
+          const { data } = await supabase
+            .from('appointments')
+            .select('id, appointment_time, complaints, patient_id, patients(name, email)')
+            .eq('doctor_id', doctor.id)
+            .eq('appointment_date', date)
+          appointments = data || []
+        } else {
+          const booked = await getBookedSlotsForDoctor(doctor.id, date, date)
+          appointments = (booked || []).map((row) => ({
+            id: null,
+            appointment_time: row.appointment_time
+          }))
+        }
         
         const appointmentMap = {};
         if (appointments) {
@@ -434,6 +441,33 @@ async function selectDoctor(doctorId, doctors) {
 
 let appointmentMap = {}
 
+async function getBookedSlotsForDoctor(doctorId, startDate, endDate) {
+  // Prefer a dedicated RPC that returns only safe columns.
+  // Fallback to querying appointments (legacy behavior) if RPC isn't deployed yet.
+  try {
+    const { data, error } = await supabase.rpc('get_booked_slots', {
+      p_doctor_id: doctorId,
+      p_start: startDate,
+      p_end: endDate
+    })
+    if (error) throw error
+    return (data || []).map((row) => ({
+      appointment_date: row.appointment_date,
+      appointment_time: row.appointment_time
+    }))
+  } catch (error) {
+    const { data, error: fallbackError } = await supabase
+      .from('appointments')
+      .select('appointment_date, appointment_time')
+      .eq('doctor_id', doctorId)
+      .gte('appointment_date', startDate)
+      .lte('appointment_date', endDate)
+
+    if (fallbackError) throw fallbackError
+    return data || []
+  }
+}
+
 async function loadDoctorCalendar(doctor) {
   const calendarContainer = document.getElementById('calendar-container')
   if (!calendarContainer) {
@@ -456,15 +490,13 @@ async function loadDoctorCalendar(doctor) {
   try {
     // КРИТИЧНО: ИЗЧИСТВАМЕ ЦЕЛИЯ appointmentMap преди да заредим нов лекар
     appointmentMap = {}
-    
-    // Заредяме appointments за този лекар
-    const { data: appointments, error } = await supabase
-      .from('appointments')
-      .select('*')
-      .eq('doctor_id', doctor.id)
-    
-    if (error) {
-      console.error('Error loading appointments:', error)
+
+    const startDate = weekDays[0].toISOString().split('T')[0]
+    const endDate = weekDays[weekDays.length - 1].toISOString().split('T')[0]
+    const appointments = await getBookedSlotsForDoctor(doctor.id, startDate, endDate)
+
+    if (!appointments) {
+      console.error('Error loading appointments: empty result')
       calendarContainer.innerHTML = '<div class="alert alert-danger">Грешка при зареждане на записите</div>'
       return
     }
@@ -671,6 +703,10 @@ async function checkUserSession() {
       showUserPanel()
     }
   } else {
+    // Important: clear any previously resolved profile to avoid showing private details
+    // when there is no active Supabase auth session.
+    currentUser = null
+    isAdmin = false
     const userPanel = document.getElementById('user-panel')
     if (userPanel) userPanel.style.display = 'none'
   }
@@ -811,6 +847,14 @@ window.logout = async () => {
 // ===================================================
 
 window.showAdminPanel = async () => {
+  try {
+    await requireAdminSession()
+  } catch (error) {
+    alert(error.message)
+    navigateTo('/auth')
+    return
+  }
+
   const container = document.createElement('div')
   container.className = 'container-fluid py-4'
   
@@ -894,6 +938,28 @@ window.showAdminPanel = async () => {
   await loadAdminRequests()
 }
 
+async function requireAdminSession() {
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData?.user?.email) {
+    throw new Error('Трябва да сте логнат като администратор.')
+  }
+
+  const { data: adminData, error: adminError } = await supabase
+    .from('admins')
+    .select('id, email, is_active')
+    .eq('email', userData.user.email)
+    .eq('is_active', true)
+    .maybeSingle()
+
+  if (adminError) {
+    throw new Error('Неуспешна проверка за админ права.')
+  }
+
+  if (!adminData) {
+    throw new Error('Нямате администраторски права.')
+  }
+}
+
 async function getDoctorsCount() {
   const { count } = await supabase
     .from('doctors')
@@ -938,7 +1004,7 @@ async function loadAdminDoctors() {
             <td>${doc.email}</td>
             <td>${doc.work_hours_from} - ${doc.work_hours_to}</td>
             <td>
-              <button class="btn btn-sm btn-danger" onclick="window.deleteDoctor('${doc.id}')">
+              <button class="btn btn-sm btn-danger" onclick="window.deleteDoctor('${doc.id}', '${encodeURIComponent(doc.email)}')">
                 <i class="fas fa-trash" style="margin-right: 6px;"></i> Изтрий
               </button>
             </td>
@@ -979,7 +1045,7 @@ async function loadAdminPatients() {
             <td>${patient.email}</td>
             <td>${date}</td>
             <td>
-              <button class="btn btn-sm btn-danger" onclick="window.deletePatient('${patient.id}')">
+              <button class="btn btn-sm btn-danger" onclick="window.deletePatient('${patient.id}', '${encodeURIComponent(patient.email)}')">
                 <i class="fas fa-trash" style="margin-right: 6px;"></i> Изтрий
               </button>
             </td>
@@ -1146,38 +1212,124 @@ window.rejectAdminRequest = async (requestId) => {
   }
 }
 
-window.deleteDoctor = async (doctorId) => {
+window.deleteDoctor = async (doctorId, emailEncoded) => {
   if (!confirm('Сигурни ли сте? Това действие е необратимо.')) return
   
   try {
-    const { error } = await supabase
-      .from('doctors')
-      .delete()
-      .eq('id', doctorId)
-    
-    if (error) throw error
-    alert('Лекарят е изтрит успешно!\n\nЗабележка: Потребителският акаунт в системата остава активен. Ако искате да го деактивирате напълно, проведете следните стъпки в Supabase конзолата:\n1. Отидете на Authentication → Users\n2. Намерете потребителя по email\n3. Натиснете Delete User')
+    const email = decodeURIComponent(emailEncoded || '')
+    if (!email) throw new Error('Липсва email за изтриване.')
+
+    const data = await invokeDeleteUser(email)
+
+    const warning = data.authDeleted ? '' : '\n\nЗабележка: Няма намерен потребител в Auth за този email.'
+    alert('Лекарят е изтрит успешно!' + warning)
     window.showAdminPanel()
   } catch (error) {
     alert('Грешка при изтриване: ' + error.message)
   }
 }
 
-window.deletePatient = async (patientId) => {
+window.deletePatient = async (patientId, emailEncoded) => {
   if (!confirm('Сигурни ли сте? Това действие е необратимо.')) return
   
   try {
-    const { error } = await supabase
-      .from('patients')
-      .delete()
-      .eq('id', patientId)
-    
-    if (error) throw error
-    alert('Пациентът е изтрит успешно!\n\nЗабележка: Потребителският акаунт в системата остава активен. Ако искате да го деактивирате напълно, проведете следните стъпки в Supabase конзолата:\n1. Отидете на Authentication → Users\n2. Намерете потребителя по email\n3. Натиснете Delete User')
+    const email = decodeURIComponent(emailEncoded || '')
+    if (!email) throw new Error('Липсва email за изтриване.')
+
+    const data = await invokeDeleteUser(email)
+
+    const warning = data.authDeleted ? '' : '\n\nЗабележка: Няма намерен потребител в Auth за този email.'
+    alert('Пациентът е изтрит успешно!' + warning)
     window.showAdminPanel()
   } catch (error) {
     alert('Грешка при изтриване: ' + error.message)
   }
+}
+
+async function invokeDeleteUser(email) {
+  await ensureFreshSession()
+  await requireAdminSession()
+
+  const session = await safeGetSession()
+  const accessToken = session?.access_token
+  if (!accessToken) {
+    throw new Error('Липсва access token. Излезте и влезте отново.')
+  }
+
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/delete-user`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      apikey: SUPABASE_ANON_KEY,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ email })
+  })
+
+  const text = await response.text()
+  let parsed = null
+  try {
+    parsed = text ? JSON.parse(text) : null
+  } catch {
+    parsed = null
+  }
+
+  if (!response.ok) {
+    throw new Error(parsed?.error || parsed?.message || text || `HTTP ${response.status}`)
+  }
+
+  if (!parsed?.ok) throw new Error(parsed?.error || 'Неуспешно изтриване.')
+  return parsed
+}
+
+async function ensureFreshSession() {
+  const { data: userData, error: userError } = await supabase.auth.getUser()
+  if (userError || !userData?.user) {
+    throw new Error('Сесията е невалидна. Излезте и влезте отново с админ акаунт.')
+  }
+
+  const session = await safeGetSession()
+  if (!session) {
+    throw new Error('Липсва активна сесия. Моля, излезте и влезте отново.')
+  }
+
+  const tokenInfo = parseJwt(session.access_token)
+  const expectedIssuer = `${SUPABASE_URL}/auth/v1`
+  if (tokenInfo?.iss && tokenInfo.iss !== expectedIssuer) {
+    throw new Error('Невалиден токен за този проект. Излезте и влезте отново, или изчистете localStorage ключовете, започващи със "sb-".')
+  }
+
+  if (!session.refresh_token) {
+    throw new Error('Липсва refresh token. Излезте и влезте отново, или изчистете localStorage ключовете, започващи със "sb-".')
+  }
+
+  const expiresAt = session.expires_at ? session.expires_at * 1000 : 0
+  if (expiresAt && Date.now() > expiresAt - 30 * 1000) {
+    const { data, error } = await supabase.auth.refreshSession()
+    if (error || !data?.session) {
+      throw new Error('Сесията е изтекла. Моля, излезте и влезте отново.')
+    }
+  }
+}
+
+function parseJwt(token) {
+  if (!token || typeof token !== 'string') return null
+  const parts = token.split('.')
+  if (parts.length !== 3) return null
+  try {
+    let payload = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    while (payload.length % 4 !== 0) payload += '='
+    const decoded = atob(payload)
+    return JSON.parse(decoded)
+  } catch {
+    return null
+  }
+}
+
+async function safeGetSession() {
+  const { data, error } = await supabase.auth.getSession()
+  if (error) return null
+  return data?.session || null
 }
 
 window.deleteAppointment = async (appointmentId) => {
