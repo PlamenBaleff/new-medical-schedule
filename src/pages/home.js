@@ -7,6 +7,13 @@ let selectedDoctor = null
 let currentUser = null
 let isAdmin = false
 
+const canViewAppointmentDetails = (viewer, doctorId) => {
+  if (!viewer) return false
+  if (viewer.user_type === 'admin') return true
+  if (viewer.user_type === 'doctor' && viewer.id === doctorId) return true
+  return false
+}
+
 // Function to show patient complaints in a modal
 const showComplaintsModal = (patientName, complaints, appointmentTime) => {
   const existingModal = document.getElementById('complaints-modal-home')
@@ -134,15 +141,23 @@ export default function HomePage() {
         panel.style.display = 'none';
         return;
       }
+      const complaintPanel = container.querySelector('#complaints-panel')
+      if (complaintPanel && (!currentUser || currentUser.user_type !== 'admin')) {
+        complaintPanel.style.display = 'none'
+      }
       panel.style.display = 'block';
       panel.innerHTML = `<div class="card-header bg-info text-white"><i class="fas fa-calendar-day"></i> График за ${date}</div><div class="card-body"><div id="selected-day-slots"></div></div>`;
       const slotsDiv = document.getElementById('selected-day-slots');
       slotsDiv.innerHTML = '<div class="text-center"><div class="spinner-border text-primary"></div></div>';
       // Зареждане на часовете за избрания лекар и ден
       try {
+        const canViewDetails = canViewAppointmentDetails(currentUser, doctor.id)
+        const appointmentSelect = canViewDetails
+          ? 'id, appointment_time, complaints, patient_id, patients(name, email)'
+          : 'id, appointment_time'
         const { data: appointments } = await supabase
           .from('appointments')
-          .select('id, appointment_time, complaints, patient_id, patients(name, email)')
+          .select(appointmentSelect)
           .eq('doctor_id', doctor.id)
           .eq('appointment_date', date);
         
@@ -164,16 +179,20 @@ export default function HomePage() {
           const appointment = appointmentMap[t];
           
           if (appointment) {
-            const patientName = appointment.patients?.name || 'Неизвестен';
-            const shortComplaints = appointment.complaints?.substring(0, 20) + (appointment.complaints?.length > 20 ? '...' : '') || 'Без описание';
-            const appointmentId = appointment.id;
-            
-            if (user && user.user_type === 'doctor') {
-              // Doctor - show patient info and complaints button
+            if (canViewDetails && user?.user_type === 'doctor') {
+              const patientName = appointment.patients?.name || 'Неизвестен'
+              const shortComplaints = appointment.complaints?.substring(0, 20) + (appointment.complaints?.length > 20 ? '...' : '') || 'Без описание'
+              const appointmentId = appointment.id
+              // Doctor (own schedule) - show patient info and complaints button
               html += `<div class="mb-2"><button class="btn btn-danger btn-lg w-100 show-complaints-btn" data-appointment-id="${appointmentId}" style="font-size:1rem; text-align: left; cursor: pointer;"><i class="fas fa-user-check"></i> ${t} - ${patientName}<br/><small style="margin-left: 22px; font-style: italic;">${shortComplaints}</small></button></div>`;
-            } else {
+            } else if (canViewDetails && user?.user_type === 'admin') {
+              const patientName = appointment.patients?.name || 'Неизвестен'
+              const shortComplaints = appointment.complaints?.substring(0, 20) + (appointment.complaints?.length > 20 ? '...' : '') || 'Без описание'
+              const appointmentId = appointment.id
               // Admin - show patient info and make clickable to show complaints in side panel
               html += `<div class="mb-2"><button class="btn btn-danger btn-lg w-100 show-complaints-side-btn" data-appointment-id="${appointmentId}" data-patient-name="${patientName}" data-complaints="${appointment.complaints || ''}" data-time="${t}" style="font-size:1rem; text-align: left; cursor: pointer;"><i class="fas fa-user-check"></i> ${t} - ${patientName}<br/><small style="margin-left: 22px; font-style: italic;">${shortComplaints}</small></button></div>`;
+            } else {
+              html += `<div class="mb-2"><button class="btn btn-danger btn-lg w-100" disabled style="font-size:1rem; text-align: left;"><i class="fas fa-user-check"></i> ${t} - Запазен</button></div>`;
             }
           } else if (user && user.user_type === 'patient') {
             html += `<div class="mb-2"><button class="btn btn-success btn-lg w-100 book-slot-btn" data-time="${t}" style="font-size:1.1rem;"><i class="fas fa-check-circle"></i> ${t} - Свободен</button></div>`;
@@ -183,55 +202,59 @@ export default function HomePage() {
         }
         slotsDiv.innerHTML = html;
         
-        // Add event listeners for complaint buttons (doctor view)
-        slotsDiv.querySelectorAll('.show-complaints-btn').forEach(btn => {
-          btn.addEventListener('click', async () => {
-            const appointmentId = btn.dataset.appointmentId;
-            const { data: appt } = await supabase
-              .from('appointments')
-              .select('id, appointment_time, complaints, patient_id, patients(name, email)')
-              .eq('id', appointmentId)
-              .single();
-            
-            if (appt) {
-              showComplaintsModal(
-                appt.patients?.name || 'Неизвестен',
-                appt.complaints || 'Без описание',
-                appt.appointment_time
-              );
-            }
+        if (canViewDetails && user?.user_type === 'doctor') {
+          // Add event listeners for complaint buttons (doctor view)
+          slotsDiv.querySelectorAll('.show-complaints-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+              const appointmentId = btn.dataset.appointmentId;
+              const { data: appt } = await supabase
+                .from('appointments')
+                .select('id, appointment_time, complaints, patient_id, patients(name, email)')
+                .eq('id', appointmentId)
+                .single();
+              
+              if (appt) {
+                showComplaintsModal(
+                  appt.patients?.name || 'Неизвестен',
+                  appt.complaints || 'Без описание',
+                  appt.appointment_time
+                );
+              }
+            });
           });
-        });
+        }
 
-        // Add event listeners for complaint buttons (admin view - show in side panel)
-        slotsDiv.querySelectorAll('.show-complaints-side-btn').forEach(btn => {
-          btn.addEventListener('click', () => {
-            const patientName = btn.dataset.patientName;
-            const complaints = btn.dataset.complaints;
-            const time = btn.dataset.time;
-            
-            const complaintPanel = container.querySelector('#complaints-panel');
-            const complaintsContent = container.querySelector('#complaints-content');
-            
-            if (complaintPanel && complaintsContent) {
-              complaintPanel.style.display = 'block';
-              complaintsContent.innerHTML = `
-                <div style="margin-bottom: 12px;">
-                  <p style="margin: 0 0 8px 0; color: #666;">
-                    <strong style="color: #333;">Пациент:</strong> ${patientName}
-                  </p>
-                  <p style="margin: 0 0 8px 0; color: #666;">
-                    <strong style="color: #333;">Час:</strong> ${time}
-                  </p>
-                </div>
-                <hr style="margin: 12px 0; border: none; border-top: 1px solid #eee;">
-                <div style="background: #F5F5F5; padding: 12px; border-radius: 8px;">
-                  <p style="margin: 0; color: #333; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; font-size: 0.95rem;">${complaints}</p>
-                </div>
-              `;
-            }
+        if (canViewDetails && user?.user_type === 'admin') {
+          // Add event listeners for complaint buttons (admin view - show in side panel)
+          slotsDiv.querySelectorAll('.show-complaints-side-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+              const patientName = btn.dataset.patientName;
+              const complaints = btn.dataset.complaints;
+              const time = btn.dataset.time;
+              
+              const complaintPanel = container.querySelector('#complaints-panel');
+              const complaintsContent = container.querySelector('#complaints-content');
+              
+              if (complaintPanel && complaintsContent) {
+                complaintPanel.style.display = 'block';
+                complaintsContent.innerHTML = `
+                  <div style="margin-bottom: 12px;">
+                    <p style="margin: 0 0 8px 0; color: #666;">
+                      <strong style="color: #333;">Пациент:</strong> ${patientName}
+                    </p>
+                    <p style="margin: 0 0 8px 0; color: #666;">
+                      <strong style="color: #333;">Час:</strong> ${time}
+                    </p>
+                  </div>
+                  <hr style="margin: 12px 0; border: none; border-top: 1px solid #eee;">
+                  <div style="background: #F5F5F5; padding: 12px; border-radius: 8px;">
+                    <p style="margin: 0; color: #333; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; font-size: 0.95rem;">${complaints}</p>
+                  </div>
+                `;
+              }
+            });
           });
-        });
+        }
         
         // Добавям click handler-и за записване на час
         if (user && user.user_type === 'patient') {
@@ -773,6 +796,12 @@ window.logout = async () => {
   if (userPanel) userPanel.style.display = 'none'
   const bookingPanel = document.getElementById('booking-panel')
   if (bookingPanel) bookingPanel.style.display = 'none'
+  const complaintsPanel = document.getElementById('complaints-panel')
+  if (complaintsPanel) complaintsPanel.style.display = 'none'
+  const complaintsContent = document.getElementById('complaints-content')
+  if (complaintsContent) {
+    complaintsContent.innerHTML = '<small class="text-muted">Изберете час, за да видите оплакванията</small>'
+  }
 
   navigateTo('/auth')
 }

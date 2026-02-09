@@ -11,6 +11,7 @@ export default function SchedulePage() {
   let selectedDate = null
   let currentUser = null
   let currentDoctor = null
+  let currentRole = 'guest'
 
   container.innerHTML = `
     <div style="display: grid; grid-template-columns: 1fr 350px; gap: 20px; grid-auto-flow: row;">
@@ -46,7 +47,7 @@ export default function SchedulePage() {
               <h6 class="mb-2" style="font-size: 0.9rem;"><i class="fas fa-circle-info" style="margin-right: 6px; color: #4FC3F7;"></i> <strong>Легенда</strong></h6>
               <div class="mb-2">
                 <span class="badge" style="background-color: #FF9800; color: white; padding: 6px 10px; font-size: 0.75rem;">Запазен</span>
-                <small class="d-block text-muted mt-1" style="font-size: 0.75rem;">Има пациент - кликни за оплаквания</small>
+                <small class="d-block text-muted mt-1" style="font-size: 0.75rem;" id="schedule-reserved-hint">Има пациент - кликни за оплаквания</small>
               </div>
               <div>
                 <span class="badge" style="background-color: #66BB6A; color: white; padding: 6px 10px; font-size: 0.75rem;">Свободен</span>
@@ -219,6 +220,56 @@ export default function SchedulePage() {
     })
   }
 
+  const resolveViewerContext = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    currentUser = null
+    currentDoctor = null
+    currentRole = 'guest'
+
+    if (!user) return
+
+    const { data: adminData } = await supabase
+      .from('admins')
+      .select('id, email, name, is_active, created_at')
+      .eq('email', user.email)
+      .eq('is_active', true)
+      .maybeSingle()
+
+    if (adminData) {
+      currentRole = 'admin'
+      currentUser = { ...adminData, user_type: 'admin', email: user.email }
+      return
+    }
+
+    const { data: doctorProfile } = await supabase
+      .from('doctors')
+      .select('*')
+      .eq('email', user.email)
+      .maybeSingle()
+
+    if (doctorProfile) {
+      currentRole = 'doctor'
+      currentDoctor = doctorProfile
+      currentUser = { ...doctorProfile, user_type: 'doctor' }
+      return
+    }
+
+    const { data: patientProfile } = await supabase
+      .from('patients')
+      .select('id, name, phone, email, created_at')
+      .eq('email', user.email)
+      .maybeSingle()
+
+    if (patientProfile) {
+      currentRole = 'patient'
+      currentUser = { ...patientProfile, user_type: 'patient' }
+      return
+    }
+
+    currentRole = 'user'
+    currentUser = { email: user.email, user_type: 'user' }
+  }
+
   // Function to load and display schedule with real appointments
   const loadSchedule = async (dateStr = null) => {
     const tableContainer = container.querySelector('#schedule-table')
@@ -229,28 +280,27 @@ export default function SchedulePage() {
     const displayDate = dateStr || (dateInput?.value) || new Date().toISOString().split('T')[0]
     
     try {
-      // Check current user
-      const { data: { user } } = await supabase.auth.getUser()
-      currentUser = user
+      await resolveViewerContext()
+
+      const canViewAnyDetails = currentRole === 'admin' || currentRole === 'doctor'
+      const reservedHint = container.querySelector('#schedule-reserved-hint')
+      if (reservedHint) {
+        reservedHint.textContent = canViewAnyDetails
+          ? 'Има пациент - кликни за оплаквания'
+          : 'Времето е заето'
+      }
       
       let doctorsToDisplay = []
       
-      if (user && user.user_metadata?.user_type === 'doctor') {
+      if (currentRole === 'doctor') {
         // If doctor, show only their own schedule
-        const { data: doctorProfile } = await supabase
-          .from('doctors')
-          .select('*')
-          .eq('email', user.email)
-          .single()
-        
-        if (doctorProfile) {
-          doctorsToDisplay = [doctorProfile]
-          currentDoctor = doctorProfile
+        if (currentDoctor) {
+          doctorsToDisplay = [currentDoctor]
           
           // Update header to show it's the doctor's own schedule
           const titleEl = container.querySelector('h1')
           if (titleEl) {
-            titleEl.innerHTML = `<i class="fas fa-calendar-week" style="font-size: 28px; margin-right: 12px;"></i> Моят график - ${doctorProfile.name}`
+            titleEl.innerHTML = `<i class="fas fa-calendar-week" style="font-size: 28px; margin-right: 12px;"></i> Моят график - ${currentDoctor.name}`
           }
         }
       } else {
@@ -266,11 +316,15 @@ export default function SchedulePage() {
 
       const rows = await Promise.all(doctorsToDisplay.map(async (doc) => {
         const hours = `${doc.work_hours_from || '08:00'} - ${doc.work_hours_to || '17:00'}`
+        const canViewDetails = currentRole === 'admin' || (currentRole === 'doctor' && currentDoctor?.id === doc.id)
+        const appointmentSelect = canViewDetails
+          ? 'id, appointment_time, complaints, patient_id, patients(name, email)'
+          : 'id, appointment_time'
         
         // Get appointments for this doctor on selected date
         const { data: appointments, error: apptError } = await supabase
           .from('appointments')
-          .select('id, appointment_time, complaints, patient_id, patients(name, email)')
+          .select(appointmentSelect)
           .eq('doctor_id', doc.id)
           .eq('appointment_date', displayDate)
           .order('appointment_time')
@@ -291,19 +345,30 @@ export default function SchedulePage() {
           const appointment = appointmentMap[timeStr]
           
           if (appointment) {
-            const patientName = appointment.patients?.name || 'Неизвестен пациент'
-            const shortComplaints = appointment.complaints?.substring(0, 25) + (appointment.complaints?.length > 25 ? '...' : '') || 'Без описание'
-            const appointmentId = appointment.id
-            
-            timeSlots.push(`
-              <div class="time-slot mb-2">
-                <button class="btn btn-sm w-100 appointment-btn" style="background-color: #FF9800; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; text-align: left; cursor: pointer;" data-appointment-id="${appointmentId}" title="Кликни за всички оплаквания">
-                  <i class="fas fa-user-check" style="margin-right: 6px;"></i>
-                  <strong>${timeStr}</strong> - ${patientName}
-                  <br><small style="margin-left: 22px; display: block; font-size: 0.75rem; font-style: italic;">${shortComplaints}</small>
-                </button>
-              </div>
-            `)
+            if (canViewDetails) {
+              const patientName = appointment.patients?.name || 'Неизвестен пациент'
+              const shortComplaints = appointment.complaints?.substring(0, 25) + (appointment.complaints?.length > 25 ? '...' : '') || 'Без описание'
+              const appointmentId = appointment.id
+              
+              timeSlots.push(`
+                <div class="time-slot mb-2">
+                  <button class="btn btn-sm w-100 appointment-btn" style="background-color: #FF9800; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; text-align: left; cursor: pointer;" data-appointment-id="${appointmentId}" title="Кликни за всички оплаквания">
+                    <i class="fas fa-user-check" style="margin-right: 6px;"></i>
+                    <strong>${timeStr}</strong> - ${patientName}
+                    <br><small style="margin-left: 22px; display: block; font-size: 0.75rem; font-style: italic;">${shortComplaints}</small>
+                  </button>
+                </div>
+              `)
+            } else {
+              timeSlots.push(`
+                <div class="time-slot mb-2">
+                  <button class="btn btn-sm w-100" style="background-color: #FF9800; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 0.85rem; text-align: left;" disabled>
+                    <i class="fas fa-user-check" style="margin-right: 6px;"></i>
+                    <strong>${timeStr}</strong> - Запазен
+                  </button>
+                </div>
+              `)
+            }
           } else {
             timeSlots.push(`
               <div class="time-slot mb-2">
@@ -362,7 +427,7 @@ export default function SchedulePage() {
       const doctorCountBadge = container.querySelector('#doctor-count')
       const doctorInfoTitle = container.querySelector('#doctor-info-title')
       
-      if (currentUser && currentUser.user_metadata?.user_type === 'doctor') {
+      if (currentRole === 'doctor') {
         // Doctor view - show their specialty and working hours
         if (doctorInfoTitle) {
           doctorInfoTitle.textContent = 'Моята специалност'
