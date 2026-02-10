@@ -1,6 +1,7 @@
 // Schedule page component
 import { getDoctors, supabase } from '../services/supabase.js'
 import { eventBus, EVENTS } from '../services/eventBus.js'
+import { renderDoctorAvatarImg } from '../utils/doctorAvatar.js'
 
 export default function SchedulePage() {
   const container = document.createElement('div')
@@ -300,7 +301,11 @@ export default function SchedulePage() {
           // Update header to show it's the doctor's own schedule
           const titleEl = container.querySelector('h1')
           if (titleEl) {
-            titleEl.innerHTML = `<i class="fas fa-calendar-week" style="font-size: 28px; margin-right: 12px;"></i> Моят график - ${currentDoctor.name}`
+            const avatar = renderDoctorAvatarImg(currentDoctor, 32)
+            const nameHtml = avatar
+              ? `<span class="d-inline-flex align-items-center gap-2">${avatar}<span>${currentDoctor.name}</span></span>`
+              : currentDoctor.name
+            titleEl.innerHTML = `<i class="fas fa-calendar-week" style="font-size: 28px; margin-right: 12px;"></i> Моят график - ${nameHtml}`
           }
         }
       } else {
@@ -385,8 +390,13 @@ export default function SchedulePage() {
           <div class="col-md-6 col-lg-4 col-xl-3 mb-4">
             <div class="card h-100 shadow-sm" style="border: none; border-radius: 12px; overflow: hidden;">
               <div class="card-header" style="background: linear-gradient(135deg, #4FC3F7 0%, #29B6F6 100%); color: white; padding: 15px;">
-                <h6 class="mb-1"><i class="fas fa-user-md" style="margin-right: 8px;"></i> ${doc.name}</h6>
-                <small>${doc.specialty || 'Лекар'}</small>
+                <div class="d-flex align-items-center gap-2">
+                  ${renderDoctorAvatarImg(doc, 28) || '<i class="fas fa-user-doctor" style="margin-right: 2px;"></i>'}
+                  <div>
+                    <h6 class="mb-1">${doc.name}</h6>
+                    <small>${doc.specialty || 'Лекар'}</small>
+                  </div>
+                </div>
               </div>
               <div class="card-body" style="max-height: 450px; overflow-y: auto;">
                 <small class="text-muted d-block mb-3">

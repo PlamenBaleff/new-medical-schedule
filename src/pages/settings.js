@@ -4,6 +4,7 @@ import { getDoctorByEmail, getPatientByEmail, updateDoctor, updatePatient, creat
 import { eventBus, EVENTS } from '../services/eventBus.js'
 import { supabase } from '../services/supabase.js'
 import { navigateTo } from '../services/router.js'
+import { DOCTOR_AVATARS_BUCKET, renderDoctorAvatarImg } from '../utils/doctorAvatar.js'
 
 export default function SettingsPage() {
   const container = document.createElement('div')
@@ -212,6 +213,31 @@ function setupSettingsHandlers(currentUser, container) {
       
       // Add doctor-specific fields
       if (userType === 'doctor') {
+        const avatarPreview = renderDoctorAvatarImg(userData, 72)
+        formHTML += `
+          <div class="mb-4">
+            <label class="form-label"><strong>Профилна снимка</strong></label>
+            <div class="d-flex align-items-center gap-3">
+              <div id="doctor-avatar-preview" style="min-width: 72px; min-height: 72px; display: flex; align-items: center; justify-content: center;">
+                ${avatarPreview || '<i class="fas fa-user-doctor" style="font-size: 48px; color: #4FC3F7;"></i>'}
+              </div>
+              <div class="flex-grow-1">
+                <input type="file" class="form-control" id="doctor-avatar-file" accept="image/png,image/jpeg,image/webp">
+                <div class="d-flex gap-2 mt-2">
+                  <button type="button" class="btn btn-outline-primary btn-sm" id="upload-avatar-btn">
+                    <i class="fas fa-upload" style="margin-right: 6px;"></i> Качи
+                  </button>
+                  <button type="button" class="btn btn-outline-danger btn-sm" id="delete-avatar-btn" ${userData.avatar_path ? '' : 'disabled'}>
+                    <i class="fas fa-trash" style="margin-right: 6px;"></i> Изтрий
+                  </button>
+                </div>
+                <small class="text-muted">PNG/JPG/WebP, препоръчително квадратна снимка.</small>
+                <div id="avatar-message" class="mt-2"></div>
+              </div>
+            </div>
+          </div>
+        `
+
         formHTML += `
           <div class="mb-3">
             <label for="specialty" class="form-label"><strong>Специалност</strong></label>
@@ -259,6 +285,11 @@ function setupSettingsHandlers(currentUser, container) {
       `
       
       profileCard.querySelector('.card-body').innerHTML = formHTML
+
+      // Doctor avatar upload/delete handlers (doctor only)
+      if (userType === 'doctor') {
+        setupDoctorAvatarHandlers(currentUser, userData, userEmail, profileCard)
+      }
       
       // Handle form submission
       const form = profileCard.querySelector('#profile-form')
@@ -339,6 +370,132 @@ function setupSettingsHandlers(currentUser, container) {
       }
     }
   }, 0)
+}
+
+function setupDoctorAvatarHandlers(currentUser, userData, userEmail, profileCard) {
+  const fileInput = profileCard.querySelector('#doctor-avatar-file')
+  const uploadBtn = profileCard.querySelector('#upload-avatar-btn')
+  const deleteBtn = profileCard.querySelector('#delete-avatar-btn')
+  const preview = profileCard.querySelector('#doctor-avatar-preview')
+  const message = profileCard.querySelector('#avatar-message')
+
+  if (!fileInput || !uploadBtn || !deleteBtn || !preview || !message) return
+
+  const setMessage = (html) => {
+    message.innerHTML = html
+  }
+
+  const refreshPreview = () => {
+    const img = renderDoctorAvatarImg(userData, 72)
+    preview.innerHTML = img || '<i class="fas fa-user-doctor" style="font-size: 48px; color: #4FC3F7;"></i>'
+    deleteBtn.disabled = !userData.avatar_path
+  }
+
+  const detectExt = (file) => {
+    const map = {
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+      'image/webp': 'webp'
+    }
+    if (map[file.type]) return map[file.type]
+    const name = file.name || ''
+    const parts = name.split('.')
+    const ext = parts.length > 1 ? parts.pop().toLowerCase() : ''
+    return ext || 'jpg'
+  }
+
+  uploadBtn.addEventListener('click', async () => {
+    try {
+      setMessage('')
+      const file = fileInput.files?.[0]
+      if (!file) {
+        setMessage('<div class="alert alert-warning py-2 mb-0">Изберете файл за качване.</div>')
+        return
+      }
+
+      if (!file.type?.startsWith('image/')) {
+        setMessage('<div class="alert alert-warning py-2 mb-0">Файлът трябва да е изображение.</div>')
+        return
+      }
+
+      const maxBytes = 5 * 1024 * 1024
+      if (file.size > maxBytes) {
+        setMessage('<div class="alert alert-warning py-2 mb-0">Файлът е твърде голям (макс. 5MB).</div>')
+        return
+      }
+
+      uploadBtn.disabled = true
+      deleteBtn.disabled = true
+
+      const ext = detectExt(file)
+      const path = `${currentUser.id}/avatar.${ext}`
+
+      const { error: uploadError } = await supabase
+        .storage
+        .from(DOCTOR_AVATARS_BUCKET)
+        .upload(path, file, {
+          upsert: true,
+          contentType: file.type,
+          cacheControl: '3600'
+        })
+      if (uploadError) throw uploadError
+
+      const nowIso = new Date().toISOString()
+      await updateDoctor(userEmail, { avatar_path: path, avatar_updated_at: nowIso })
+
+      userData.avatar_path = path
+      userData.avatar_updated_at = nowIso
+
+      refreshPreview()
+      setMessage('<div class="alert alert-success py-2 mb-0">Снимката е качена успешно.</div>')
+      eventBus.emit(EVENTS.DOCTOR_UPDATED, { avatar_path: path, avatar_updated_at: nowIso })
+    } catch (error) {
+      console.error('Avatar upload error:', error)
+      setMessage(`<div class="alert alert-danger py-2 mb-0">Грешка при качване: ${error.message || 'неуспешно'}.</div>`)
+      refreshPreview()
+    } finally {
+      uploadBtn.disabled = false
+    }
+  })
+
+  deleteBtn.addEventListener('click', async () => {
+    try {
+      setMessage('')
+      if (!userData.avatar_path) return
+
+      uploadBtn.disabled = true
+      deleteBtn.disabled = true
+
+      const { error: removeError } = await supabase
+        .storage
+        .from(DOCTOR_AVATARS_BUCKET)
+        .remove([userData.avatar_path])
+
+      // Even if the object is already missing, clear DB pointer.
+      const nowIso = new Date().toISOString()
+      await updateDoctor(userEmail, { avatar_path: null, avatar_updated_at: nowIso })
+
+      userData.avatar_path = null
+      userData.avatar_updated_at = nowIso
+
+      refreshPreview()
+
+      if (removeError) {
+        setMessage('<div class="alert alert-warning py-2 mb-0">Снимката е премахната от профила, но файлът не можа да се изтрие от storage.</div>')
+      } else {
+        setMessage('<div class="alert alert-success py-2 mb-0">Снимката е изтрита успешно.</div>')
+      }
+
+      eventBus.emit(EVENTS.DOCTOR_UPDATED, { avatar_path: null, avatar_updated_at: nowIso })
+    } catch (error) {
+      console.error('Avatar delete error:', error)
+      setMessage(`<div class="alert alert-danger py-2 mb-0">Грешка при изтриване: ${error.message || 'неуспешно'}.</div>`)
+      refreshPreview()
+    } finally {
+      uploadBtn.disabled = false
+      deleteBtn.disabled = !userData.avatar_path
+    }
+  })
 }
 
 async function createUserProfile(email, userType, profileCard, container) {

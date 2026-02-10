@@ -1,6 +1,7 @@
 // Doctors page component
 import { getDoctors } from '../services/supabase.js'
 import { eventBus, EVENTS } from '../services/eventBus.js'
+import { renderDoctorAvatarImg } from '../utils/doctorAvatar.js'
 
 export default function DoctorsPage() {
   const container = document.createElement('div')
@@ -35,10 +36,10 @@ export default function DoctorsPage() {
         <div class="col-md-6 col-lg-4">
           <div class="card shadow-sm h-100">
             <div class="card-body text-center">
-              <div class="mb-3">
-                <i class="fas fa-user-doctor" style="font-size: 48px; color: #4FC3F7; display: block; text-align: center;"></i>
+              <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+                ${renderDoctorAvatarImg(doctor, 48) || '<i class="fas fa-user-doctor" style="font-size: 48px; color: #4FC3F7; display: block;"></i>'}
+                <h5 class="card-title mb-0">${doctor.name}</h5>
               </div>
-              <h5 class="card-title">${doctor.name}</h5>
               <p class="text-muted small">${doctor.specialty || '-'}</p>
               <p class="small mb-2">
                 <i class="fas fa-envelope" style="margin-right: 6px;"></i> ${doctor.email}

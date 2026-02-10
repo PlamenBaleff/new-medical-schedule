@@ -36,6 +36,11 @@
   --doctor-item-active-bg: #A5D6A7;
 }
 
+.doctor-avatar-img {
+  display: inline-block;
+  object-fit: cover;
+}
+
 /* Dark theme */
 [data-theme="dark"] {
   --primary-color: #42A5F5;

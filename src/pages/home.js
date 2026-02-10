@@ -1,5 +1,6 @@
 import { supabase, SUPABASE_ANON_KEY, SUPABASE_URL } from '../services/supabase.js'
 import { eventBus, EVENTS } from '../services/eventBus.js'
+import { renderDoctorAvatarImg } from '../utils/doctorAvatar.js'
 import { ensureProfileForAuthUser } from '../services/pendingProfile.js'
 import { navigateTo } from '../services/router.js'
 
@@ -58,7 +59,12 @@ export default function HomePage() {
     <div id="user-panel" class="card shadow-sm mb-3" style="display: none;">
       <div class="card-header">
         <div class="d-flex justify-content-between align-items-center">
-          <h5 class="mb-0"><i class="fas fa-user-check" style="font-size: 20px; margin-right: 8px;"></i> Профил</h5>
+          <h5 class="mb-0 d-flex align-items-center gap-2">
+            <span id="user-panel-profile-icon">
+              <i class="fas fa-user-check" style="font-size: 20px;"></i>
+            </span>
+            <span>Профил</span>
+          </h5>
           <button class="btn btn-sm btn-outline-dark" id="user-panel-logout-btn" onclick="window.logout()">
             <i class="fas fa-sign-out-alt" style="margin-right: 6px;"></i> Изход
           </button>
@@ -327,7 +333,7 @@ async function loadDoctors() {
   try {
     const { data: doctors, error } = await supabase
       .from('doctors')
-      .select('id, name, specialty, email, work_hours_from, work_hours_to, created_at')
+      .select('id, name, specialty, email, work_hours_from, work_hours_to, created_at, avatar_path, avatar_updated_at')
       .order('name')
     
     if (error) {
@@ -393,7 +399,10 @@ function renderDoctorsList(doctors, container) {
   const doctorsHTML = doctors.map(doctor => `
     <a href="#" class="list-group-item list-group-item-action doctor-item" data-doctor-id="${doctor.id}">
       <div class="d-flex w-100 justify-content-between">
-        <h6 class="mb-1"><i class="fas fa-user-md" style="margin-right: 8px;"></i> ${doctor.name}</h6>
+        <h6 class="mb-1 d-flex align-items-center gap-2">
+          ${renderDoctorAvatarImg(doctor, 28) || '<i class="fas fa-user-doctor" style="margin-right: 2px;"></i>'}
+          <span>${doctor.name}</span>
+        </h6>
         <small class="text-success"><i class="fas fa-circle" style="margin-right: 4px;"></i></small>
       </div>
       <small class="text-muted">${doctor.specialty || 'Лекар'}</small>
@@ -593,8 +602,10 @@ function showBookingPanel(doctor) {
 function showBookingForm(doctor, date, time) {
   const bookingFormContainer = document.getElementById('booking-form-container')
   
+  const avatar = renderDoctorAvatarImg(doctor, 28)
+
   bookingFormContainer.innerHTML = `
-    <h6>Запиши час при ${doctor.name}</h6>
+    <h6 class="d-flex align-items-center gap-2">${avatar || ''}<span>Запиши час при ${doctor.name}</span></h6>
     <p class="text-muted">Дата: ${date}, Час: ${time}</p>
     <form id="booking-form">
       <div class="mb-3">
@@ -714,6 +725,8 @@ async function checkUserSession() {
 
 function showUserPanel() {
   document.getElementById('user-panel').style.display = 'block'
+
+  updateUserPanelHeaderIcon()
   
   const userInfo = document.getElementById('user-info')
   if (currentUser.user_type === 'admin') {
@@ -765,6 +778,7 @@ function showUserPanel() {
       
       if (updatedDoctor) {
         currentUser = { ...updatedDoctor, user_type: 'doctor' }
+        updateUserPanelHeaderIcon()
         const workHoursElement = document.getElementById('user-work-hours')
         if (workHoursElement) {
           workHoursElement.textContent = `${updatedDoctor.work_hours_from} - ${updatedDoctor.work_hours_to}`
@@ -780,6 +794,42 @@ function showUserPanel() {
       <p><strong>Телефон:</strong> ${currentUser.phone}</p>
       <p class="text-muted">Изберете лекар от списъка вляво, за да запишете час.</p>
     `
+  }
+}
+
+async function updateUserPanelHeaderIcon() {
+  const iconHost = document.getElementById('user-panel-profile-icon')
+  if (!iconHost) return
+
+  const defaultIcon = '<i class="fas fa-user-check" style="font-size: 20px;"></i>'
+
+  try {
+    if (!currentUser) {
+      iconHost.innerHTML = defaultIcon
+      return
+    }
+
+    if (currentUser.user_type === 'doctor') {
+      iconHost.innerHTML = renderDoctorAvatarImg(currentUser, 24) || defaultIcon
+      return
+    }
+
+    // If admin has a doctor profile (same email), allow showing that avatar.
+    if (currentUser.user_type === 'admin' && currentUser.email) {
+      const { data: doctor } = await supabase
+        .from('doctors')
+        .select('avatar_path, avatar_updated_at, name')
+        .eq('email', currentUser.email)
+        .maybeSingle()
+
+      iconHost.innerHTML = renderDoctorAvatarImg(doctor, 24) || defaultIcon
+      return
+    }
+
+    iconHost.innerHTML = defaultIcon
+  } catch (error) {
+    console.warn('Unable to update user panel header icon:', error?.message || error)
+    iconHost.innerHTML = defaultIcon
   }
 }
 
@@ -999,7 +1049,12 @@ async function loadAdminDoctors() {
       doctors.forEach(doc => {
         html += `
           <tr>
-            <td>${doc.name}</td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                ${renderDoctorAvatarImg(doc, 24) || ''}
+                <span>${doc.name}</span>
+              </div>
+            </td>
             <td>${doc.specialty || '-'}</td>
             <td>${doc.email}</td>
             <td>${doc.work_hours_from} - ${doc.work_hours_to}</td>
@@ -1066,21 +1121,46 @@ async function loadAdminPatients() {
 async function loadAdminAppointments() {
   const container = document.getElementById('appointments-admin-list')
   try {
-    const { data: appointments, error } = await supabase
-      .from('appointments')
-      .select('id, doctor_id, patient_id, appointment_date, appointment_time, complaints, status, created_at, doctors(name), patients(name)')
-      .order('appointment_date', { ascending: true })
-    
-    if (error) throw error
+    let appointments = null
+
+    // Prefer including avatar fields; fallback if DB migration isn't applied yet.
+    {
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('id, doctor_id, patient_id, appointment_date, appointment_time, complaints, status, created_at, doctors(name, avatar_path, avatar_updated_at), patients(name)')
+        .order('appointment_date', { ascending: true })
+
+      if (!error) {
+        appointments = data
+      } else {
+        const msg = String(error.message || '')
+        const shouldFallback = msg.includes('avatar_path') || msg.includes('avatar_updated_at') || msg.includes('column')
+        if (!shouldFallback) throw error
+
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('appointments')
+          .select('id, doctor_id, patient_id, appointment_date, appointment_time, complaints, status, created_at, doctors(name), patients(name)')
+          .order('appointment_date', { ascending: true })
+
+        if (fallbackError) throw fallbackError
+        appointments = fallbackData
+      }
+    }
     
     let html = '<div class="table-responsive"><table class="table table-striped">'
     html += '<thead><tr><th>Лекар</th><th>Пациент</th><th>Дата</th><th>Час</th><th>Статус</th><th>Оплаквания</th><th>Действие</th></tr></thead><tbody>'
     
     if (appointments && appointments.length > 0) {
       appointments.forEach(apt => {
+        const doc = apt.doctors || {}
         html += `
           <tr>
-            <td>${apt.doctors.name}</td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                ${renderDoctorAvatarImg(doc, 24) || ''}
+                <span>${doc.name || '-'}</span>
+              </div>
+            </td>
             <td>${apt.patients.name}</td>
             <td>${apt.appointment_date}</td>
             <td>${apt.appointment_time}</td>

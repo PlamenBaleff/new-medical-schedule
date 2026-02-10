@@ -4,6 +4,7 @@ import {
   clearPendingProfile,
   ensureProfileForAuthUser
 } from '../services/pendingProfile.js'
+import { renderDoctorAvatarImg } from '../utils/doctorAvatar.js'
 
 export default function AuthPage() {
   const container = document.createElement('div')
@@ -13,7 +14,12 @@ export default function AuthPage() {
     <div id="auth-user-panel" class="card shadow-sm mb-3" style="display: none;">
       <div class="card-header">
         <div class="d-flex justify-content-between align-items-center">
-          <h5 class="mb-0"><i class="fas fa-user-check" style="font-size: 20px; margin-right: 8px;"></i> Профил</h5>
+          <h5 class="mb-0 d-flex align-items-center gap-2">
+            <span id="auth-user-panel-profile-icon">
+              <i class="fas fa-user-check" style="font-size: 20px;"></i>
+            </span>
+            <span>Профил</span>
+          </h5>
           <button class="btn btn-sm btn-outline-dark" type="button" id="auth-logout-btn">
             <i class="fas fa-sign-out-alt" style="margin-right: 6px;"></i> Изход
           </button>
@@ -166,10 +172,18 @@ async function checkUserSession() {
   const authPanel = document.getElementById('auth-panel')
   const userPanel = document.getElementById('auth-user-panel')
   const userInfo = document.getElementById('auth-user-info')
+  const iconHost = document.getElementById('auth-user-panel-profile-icon')
+
+  const defaultIcon = '<i class="fas fa-user-check" style="font-size: 20px;"></i>'
+  const setIcon = (html) => {
+    if (!iconHost) return
+    iconHost.innerHTML = html || defaultIcon
+  }
 
   if (!user) {
     if (authPanel) authPanel.style.display = 'block'
     if (userPanel) userPanel.style.display = 'none'
+    setIcon(defaultIcon)
     return
   }
 
@@ -185,10 +199,11 @@ async function checkUserSession() {
   if (adminData) {
     const { data: doctor } = await supabase
       .from('doctors')
-      .select('name')
+      .select('name, avatar_path, avatar_updated_at')
       .eq('email', user.email)
       .maybeSingle()
     const displayName = doctor?.name || adminData.name || user.email
+    setIcon(renderDoctorAvatarImg(doctor, 24) || defaultIcon)
     if (authPanel) authPanel.style.display = 'none'
     if (userPanel) userPanel.style.display = 'block'
     if (userInfo) {
@@ -212,9 +227,11 @@ async function checkUserSession() {
   if (doctor) {
     if (authPanel) authPanel.style.display = 'none'
     if (userPanel) userPanel.style.display = 'block'
+    setIcon(renderDoctorAvatarImg(doctor, 24) || defaultIcon)
     if (userInfo) {
+      const avatar = renderDoctorAvatarImg(doctor, 32)
       userInfo.innerHTML = `
-        <h5>Добре дошли, д-р ${doctor.name}!</h5>
+        <h5 class="d-flex align-items-center gap-2">${avatar || ''}<span>Добре дошли, д-р ${doctor.name}!</span></h5>
         <p><strong>Специалност:</strong> ${doctor.specialty || '-'}</p>
         <p><strong>Email:</strong> ${doctor.email}</p>
         <p><strong>Телефон:</strong> ${doctor.phone || 'Не е посочен'}</p>
@@ -234,6 +251,7 @@ async function checkUserSession() {
   if (patient) {
     if (authPanel) authPanel.style.display = 'none'
     if (userPanel) userPanel.style.display = 'block'
+    setIcon(defaultIcon)
     if (userInfo) {
       userInfo.innerHTML = `
         <h5>Добре дошли, ${patient.name}!</h5>
@@ -246,6 +264,7 @@ async function checkUserSession() {
 
   if (authPanel) authPanel.style.display = 'block'
   if (userPanel) userPanel.style.display = 'none'
+  setIcon(defaultIcon)
 }
 
 function setupEventListeners() {
