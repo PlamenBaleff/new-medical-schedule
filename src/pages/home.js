@@ -8,6 +8,48 @@ let selectedDoctor = null
 let currentUser = null
 let isAdmin = false
 
+// Patient name cache to avoid repeated queries
+const patientNameCache = {}
+
+// Helper to fetch patient name by ID
+const getPatientName = async (patientId) => {
+  if (!patientId) {
+    console.warn('getPatientName: no patientId provided')
+    return 'Неизвестен'
+  }
+  
+  if (patientNameCache[patientId]) {
+    console.log('getPatientName: cache hit for', patientId, '=', patientNameCache[patientId])
+    return patientNameCache[patientId]
+  }
+  
+  try {
+    console.log('getPatientName: fetching from DB for', patientId)
+    const { data, error } = await supabase
+      .from('patients')
+      .select('id, name')
+      .eq('id', patientId)
+      .single()
+    
+    if (error) {
+      console.error('getPatientName error:', error.message)
+      patientNameCache[patientId] = 'Неизвестен'
+      return 'Неизвестен'
+    }
+    
+    if (data?.name) {
+      console.log('getPatientName: got name from DB:', data.name)
+      patientNameCache[patientId] = data.name
+      return data.name
+    }
+  } catch (error) {
+    console.error('getPatientName exception:', error)
+  }
+  
+  patientNameCache[patientId] = 'Неизвестен'
+  return 'Неизвестен'
+}
+
 const canViewAppointmentDetails = (viewer, doctorId) => {
   if (!viewer) return false
   if (viewer.user_type === 'admin') return true
@@ -162,10 +204,20 @@ export default function HomePage() {
         if (canViewDetails) {
           const { data } = await supabase
             .from('appointments')
-            .select('id, appointment_time, complaints, patient_id, patients(name, email)')
+            .select('id, appointment_time, complaints, patient_id')
             .eq('doctor_id', doctor.id)
             .eq('appointment_date', date)
           appointments = data || []
+          
+          // Pre-fetch all patient names for this day's appointments
+          const patientIds = [...new Set(appointments.map(a => a.patient_id).filter(Boolean))]
+          for (const pid of patientIds) {
+            try {
+              await getPatientName(pid)
+            } catch (error) {
+              console.warn('Failed to pre-fetch patient name for', pid, error)
+            }
+          }
         } else {
           const booked = await getBookedSlotsForDoctor(doctor.id, date, date)
           appointments = (booked || []).map((row) => ({
@@ -193,13 +245,13 @@ export default function HomePage() {
           
           if (appointment) {
             if (canViewDetails && user?.user_type === 'doctor') {
-              const patientName = appointment.patients?.name || 'Неизвестен'
+              const patientName = patientNameCache[appointment.patient_id] || 'Неизвестен'
               const shortComplaints = appointment.complaints?.substring(0, 20) + (appointment.complaints?.length > 20 ? '...' : '') || 'Без описание'
               const appointmentId = appointment.id
               // Doctor (own schedule) - show patient info and complaints button
               html += `<div class="mb-2"><button class="btn btn-danger btn-lg w-100 show-complaints-btn" data-appointment-id="${appointmentId}" style="font-size:1rem; text-align: left; cursor: pointer;"><i class="fas fa-user-check"></i> ${t} - ${patientName}<br/><small style="margin-left: 22px; font-style: italic;">${shortComplaints}</small></button></div>`;
             } else if (canViewDetails && user?.user_type === 'admin') {
-              const patientName = appointment.patients?.name || 'Неизвестен'
+              const patientName = patientNameCache[appointment.patient_id] || 'Неизвестен'
               const shortComplaints = appointment.complaints?.substring(0, 20) + (appointment.complaints?.length > 20 ? '...' : '') || 'Без описание'
               const appointmentId = appointment.id
               // Admin - show patient info and make clickable to show complaints in side panel
@@ -222,13 +274,14 @@ export default function HomePage() {
               const appointmentId = btn.dataset.appointmentId;
               const { data: appt } = await supabase
                 .from('appointments')
-                .select('id, appointment_time, complaints, patient_id, patients(name, email)')
+                .select('id, appointment_time, complaints, patient_id')
                 .eq('id', appointmentId)
                 .single();
               
               if (appt) {
+                const patientName = await getPatientName(appt.patient_id);
                 showComplaintsModal(
-                  appt.patients?.name || 'Неизвестен',
+                  patientName,
                   appt.complaints || 'Без описание',
                   appt.appointment_time
                 );

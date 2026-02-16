@@ -177,6 +177,20 @@ USING (
   )
 );
 
+-- Policy: Allow doctors to read patient data only for their own appointments
+CREATE POLICY "Allow doctors to read patients for own appointments"
+ON patients FOR SELECT
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1
+    FROM appointments a
+    JOIN doctors d ON d.id = a.doctor_id
+    WHERE a.patient_id = patients.id
+      AND d.email = auth.email()
+  )
+);
+
 -- Policy: Allow admin to update all patients
 CREATE POLICY "Allow admin to update all patients"
 ON patients FOR UPDATE

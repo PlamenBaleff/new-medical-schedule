@@ -17,7 +17,7 @@ USING (
     SELECT 1
     FROM public.doctors
     WHERE public.doctors.id = public.appointments.doctor_id
-      AND public.doctors.email = auth.email()
+      AND lower(public.doctors.email) = lower(auth.email())
   )
 );
 
@@ -33,6 +33,30 @@ USING (
     FROM public.admins
     WHERE public.admins.email = auth.email()
       AND public.admins.is_active = true
+  )
+);
+
+-- 2.05) Ensure patients can always read their own profile (login/profile stability)
+DROP POLICY IF EXISTS "Allow users to read their own patient data" ON public.patients;
+CREATE POLICY "Allow users to read their own patient data"
+ON public.patients
+FOR SELECT
+TO authenticated
+USING (lower(public.patients.email) = lower(auth.email()));
+
+-- 2.1) Allow doctors to read patient names only for their own appointments
+DROP POLICY IF EXISTS "Allow doctors to read patients for own appointments" ON public.patients;
+CREATE POLICY "Allow doctors to read patients for own appointments"
+ON public.patients
+FOR SELECT
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1
+    FROM public.appointments a
+    JOIN public.doctors d ON d.id = a.doctor_id
+    WHERE a.patient_id = public.patients.id
+      AND lower(d.email) = lower(auth.email())
   )
 );
 

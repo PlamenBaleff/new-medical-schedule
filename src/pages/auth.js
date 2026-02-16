@@ -187,7 +187,11 @@ async function checkUserSession() {
     return
   }
 
-  await ensureProfileForAuthUser(user)
+  try {
+    await ensureProfileForAuthUser(user)
+  } catch (error) {
+    console.warn('Profile sync during session check failed:', error)
+  }
 
   const { data: adminData } = await supabase
     .from('admins')
@@ -262,9 +266,16 @@ async function checkUserSession() {
     return
   }
 
-  if (authPanel) authPanel.style.display = 'block'
-  if (userPanel) userPanel.style.display = 'none'
+  if (authPanel) authPanel.style.display = 'none'
+  if (userPanel) userPanel.style.display = 'block'
   setIcon(defaultIcon)
+  if (userInfo) {
+    userInfo.innerHTML = `
+      <h5>Успешен вход</h5>
+      <p><strong>Email:</strong> ${user.email}</p>
+      <p class="text-muted mb-0">Профилът ви не е намерен в базата данни. Свържете се с администратор, ако проблемът продължи.</p>
+    `
+  }
 }
 
 function setupEventListeners() {
@@ -464,10 +475,20 @@ async function login() {
     })
 
     if (error) throw error
-    await ensureProfileForAuthUser(data.user)
-    await checkUserSession()
+
+    try {
+      await ensureProfileForAuthUser(data.user)
+      await checkUserSession()
+    } catch (profileError) {
+      console.warn('Login succeeded, but profile sync/render failed:', profileError)
+      await checkUserSession()
+    }
   } catch (error) {
     console.error('Error logging in:', error)
+    if (String(error.message || '').toLowerCase().includes('email not confirmed')) {
+      alert('Грешка при вход: Имейлът не е потвърден. Потвърдете регистрацията от писмото и опитайте отново.')
+      return
+    }
     alert('Грешка при вход: ' + error.message)
   }
 }

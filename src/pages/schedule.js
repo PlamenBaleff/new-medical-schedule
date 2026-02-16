@@ -7,12 +7,47 @@ export default function SchedulePage() {
   const container = document.createElement('div')
   container.className = 'container-fluid py-4 px-3 px-md-4'
 
-  // Variables for calendar
-  let currentDate = new Date()
-  let selectedDate = null
-  let currentUser = null
-  let currentDoctor = null
-  let currentRole = 'guest'
+  // Patient name cache to avoid repeated queries
+  const patientNameCache = {}
+
+  // Helper to fetch patient name by ID
+  const getPatientName = async (patientId) => {
+    if (!patientId) {
+      console.warn('getPatientName: no patientId provided')
+      return 'Неизвестен'
+    }
+    
+    if (patientNameCache[patientId]) {
+      console.log('getPatientName: cache hit for', patientId, '=', patientNameCache[patientId])
+      return patientNameCache[patientId]
+    }
+    
+    try {
+      console.log('getPatientName: fetching from DB for', patientId)
+      const { data, error } = await supabase
+        .from('patients')
+        .select('id, name')
+        .eq('id', patientId)
+        .single()
+      
+      if (error) {
+        console.error('getPatientName error:', error.message)
+        patientNameCache[patientId] = 'Неизвестен'
+        return 'Неизвестен'
+      }
+      
+      if (data?.name) {
+        console.log('getPatientName: got name from DB:', data.name)
+        patientNameCache[patientId] = data.name
+        return data.name
+      }
+    } catch (error) {
+      console.error('getPatientName exception:', error)
+    }
+    
+    patientNameCache[patientId] = 'Неизвестен'
+    return 'Неизвестен'
+  }
 
   container.innerHTML = `
     <div style="display: grid; grid-template-columns: 1fr 350px; gap: 20px; grid-auto-flow: row;">
@@ -322,9 +357,7 @@ export default function SchedulePage() {
       const rows = await Promise.all(doctorsToDisplay.map(async (doc) => {
         const hours = `${doc.work_hours_from || '08:00'} - ${doc.work_hours_to || '17:00'}`
         const canViewDetails = currentRole === 'admin' || (currentRole === 'doctor' && currentDoctor?.id === doc.id)
-        const appointmentSelect = canViewDetails
-          ? 'id, appointment_time, complaints, patient_id, patients(name, email)'
-          : 'id, appointment_time'
+        const appointmentSelect = 'id, appointment_time, complaints, patient_id'
         
         // Get appointments for this doctor on selected date
         const { data: appointments, error: apptError } = await supabase
@@ -334,8 +367,20 @@ export default function SchedulePage() {
           .eq('appointment_date', displayDate)
           .order('appointment_time')
         
+        // Pre-fetch all patient names for this doctor's appointments
+        if (appointments && canViewDetails) {
+          const patientIds = [...new Set(appointments.map(a => a.patient_id).filter(Boolean))]
+          for (const pid of patientIds) {
+            try {
+              await getPatientName(pid)
+            } catch (error) {
+              console.warn('Failed to pre-fetch patient name for', pid, error)
+            }
+          }
+        }
+        
         const appointmentMap = {}
-        if (appointments && !apptError) {
+        if (appointments) {
           appointments.forEach(appt => {
             appointmentMap[appt.appointment_time.substring(0, 5)] = appt
           })
@@ -351,7 +396,7 @@ export default function SchedulePage() {
           
           if (appointment) {
             if (canViewDetails) {
-              const patientName = appointment.patients?.name || 'Неизвестен пациент'
+              const patientName = patientNameCache[appointment.patient_id] || 'Неизвестен пациент'
               const shortComplaints = appointment.complaints?.substring(0, 25) + (appointment.complaints?.length > 25 ? '...' : '') || 'Без описание'
               const appointmentId = appointment.id
               
@@ -420,13 +465,14 @@ export default function SchedulePage() {
           const appointmentId = btn.dataset.appointmentId
           const { data: appointment } = await supabase
             .from('appointments')
-            .select('id, appointment_time, complaints, patient_id, patients(name, email)')
+            .select('id, appointment_time, complaints, patient_id')
             .eq('id', appointmentId)
             .single()
           
-          if (appointment) {
+          if (appointment && (currentRole === 'admin' || currentRole === 'doctor')) {
+            const patientName = await getPatientName(appointment.patient_id)
             showComplaintsModal(
-              appointment.patients?.name || 'Неизвестен',
+              patientName,
               appointment.complaints || 'Без описание',
               appointment.appointment_time
             )

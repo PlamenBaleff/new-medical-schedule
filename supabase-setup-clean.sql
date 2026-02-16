@@ -19,6 +19,7 @@ DROP POLICY IF EXISTS "Allow users to read their own patient data" ON patients;
 DROP POLICY IF EXISTS "Allow patients to update own records" ON patients;
 DROP POLICY IF EXISTS "Allow authenticated users to insert patients" ON patients;
 DROP POLICY IF EXISTS "Allow admin to read all patients" ON patients;
+DROP POLICY IF EXISTS "Allow doctors to read patients for own appointments" ON patients;
 DROP POLICY IF EXISTS "Allow admin to update all patients" ON patients;
 DROP POLICY IF EXISTS "Allow admin to delete patients" ON patients;
 
@@ -172,6 +173,19 @@ USING (
   EXISTS (
     SELECT 1 FROM admins 
     WHERE admins.email = auth.email() AND admins.is_active = true
+  )
+);
+
+CREATE POLICY "Allow doctors to read patients for own appointments"
+ON patients FOR SELECT
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1
+    FROM appointments a
+    JOIN doctors d ON d.id = a.doctor_id
+    WHERE a.patient_id = patients.id
+      AND d.email = auth.email()
   )
 );
 
