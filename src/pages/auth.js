@@ -1,4 +1,4 @@
-import { supabase } from '../services/supabase.js'
+import { supabase, IS_SUPABASE_READY } from '../services/supabase.js'
 import {
   savePendingProfile,
   clearPendingProfile,
@@ -312,6 +312,10 @@ function setupEventListeners() {
 }
 
 async function registerDoctor() {
+  if (!IS_SUPABASE_READY) {
+    alert('Supabase не е конфигуриран или стойностите са невалидни.\n\nNetlify → Site settings → Environment variables:\n- VITE_SUPABASE_URL = https://<project-ref>.supabase.co\n- VITE_SUPABASE_ANON_KEY = (anon public key, започва с eyJ...)\n\nСлед това: Trigger deploy → Clear cache and deploy.')
+    return
+  }
   const name = document.getElementById('doctor-name').value
   const specialty = document.getElementById('doctor-specialty').value
   const phone = document.getElementById('doctor-phone').value
@@ -410,6 +414,10 @@ async function registerDoctor() {
 }
 
 async function registerPatient() {
+  if (!IS_SUPABASE_READY) {
+    alert('Supabase не е конфигуриран или стойностите са невалидни.\n\nNetlify → Site settings → Environment variables:\n- VITE_SUPABASE_URL = https://<project-ref>.supabase.co\n- VITE_SUPABASE_ANON_KEY = (anon public key, започва с eyJ...)\n\nСлед това: Trigger deploy → Clear cache and deploy.')
+    return
+  }
   const name = document.getElementById('patient-name').value
   const phone = document.getElementById('patient-phone').value
   const email = document.getElementById('patient-email').value
@@ -465,6 +473,10 @@ async function registerPatient() {
 }
 
 async function login() {
+  if (!IS_SUPABASE_READY) {
+    alert('Supabase не е конфигуриран или стойностите са невалидни.\n\nNetlify → Site settings → Environment variables:\n- VITE_SUPABASE_URL = https://<project-ref>.supabase.co\n- VITE_SUPABASE_ANON_KEY = (anon public key, започва с eyJ...)\n\nСлед това: Trigger deploy → Clear cache and deploy.')
+    return
+  }
   const email = document.getElementById('login-email').value
   const password = document.getElementById('login-password').value
 

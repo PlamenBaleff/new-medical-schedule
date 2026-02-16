@@ -138,6 +138,23 @@ npm run build
 
 Файловете ще бъдат генерирани в `dist/` директорията.
 
+## Deploy в Netlify
+
+Проектът е Vite SPA (History API routing), и вече има Netlify настройки в `netlify.toml` + `public/_redirects`.
+
+1. Качете проекта в Git (GitHub/GitLab).
+2. Netlify → **Add new site** → **Import from Git**.
+3. Build settings (ако не се попълнят автоматично):
+	- **Build command:** `npm run build`
+	- **Publish directory:** `dist`
+4. Netlify → **Site settings → Environment variables** добавете (преди deploy / или направете redeploy след добавяне):
+	- `VITE_SUPABASE_URL`
+	- `VITE_SUPABASE_ANON_KEY`
+
+Забележка: Vite “вгражда” env променливите по време на build, т.е. промени в env изискват нов deploy.
+
+Ако използвате email confirmation при регистрация: в Supabase → Authentication settings добавете Netlify домейна ви като Site URL/Redirect URL (за да може линкът от имейла да връща към сайта).
+
 ## Превю на production build
 
 ```bash

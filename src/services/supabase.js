@@ -1,28 +1,54 @@
 // Supabase client configuration
 import { createClient } from '@supabase/supabase-js'
 
-// TODO: Add your Supabase credentials
-export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co'
-export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmYWhlcWxjeXJ1a2VoeG9kdGRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk2OTg3MTcsImV4cCI6MjA4NTI3NDcxN30.bUlR8_4uQmrXz1pEGLdoP-n25x2MhDIY_P4VJpCa4pQ";
+// Supabase credentials MUST come from Vite env vars.
+// In Netlify these are configured in: Site settings → Environment variables.
+const rawUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim()
+const rawAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim()
 
-// Debug logging
-console.log('=== SUPABASE DEBUG ===')
-console.log('VITE_SUPABASE_URL:', SUPABASE_URL)
-console.log('VITE_SUPABASE_ANON_KEY:', SUPABASE_ANON_KEY ? SUPABASE_ANON_KEY.substring(0, 20) + '...' : 'NOT SET')
-console.log('=====================')
-
-// Check if Supabase is configured
-const isConfigured = SUPABASE_URL !== 'https://placeholder.supabase.co' && 
-                     SUPABASE_ANON_KEY !== 'placeholder-key'
-
-if (!isConfigured) {
-  console.warn('⚠️ Supabase is not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.')
-  console.warn('📖 See DATABASE_SETUP.md for instructions.')
-} else {
-  console.log('✅ Supabase is configured correctly')
+const looksLikeSupabaseUrl = (value) => {
+  if (!value) return false
+  // Accept https://<ref>.supabase.co (with optional trailing slash)
+  return /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(value)
 }
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+const looksLikeAnonKey = (value) => {
+  if (!value) return false
+  // Supabase anon keys are JWT-like strings (typically start with eyJ)
+  return value.length > 50 && value.startsWith('eyJ')
+}
+
+export const SUPABASE_URL = looksLikeSupabaseUrl(rawUrl) ? rawUrl.replace(/\/$/, '') : 'https://placeholder.supabase.co'
+export const SUPABASE_ANON_KEY = looksLikeAnonKey(rawAnonKey) ? rawAnonKey : 'placeholder-key'
+
+export const IS_SUPABASE_CONFIGURED = looksLikeSupabaseUrl(rawUrl) && looksLikeAnonKey(rawAnonKey)
+
+export const SUPABASE_CONFIG_PROBLEM = (() => {
+  if (IS_SUPABASE_CONFIGURED) return null
+  if (!rawUrl) return 'Missing VITE_SUPABASE_URL'
+  if (!looksLikeSupabaseUrl(rawUrl)) return 'Invalid VITE_SUPABASE_URL (expected: https://<project-ref>.supabase.co)'
+  if (!rawAnonKey) return 'Missing VITE_SUPABASE_ANON_KEY'
+  if (!looksLikeAnonKey(rawAnonKey)) return 'Invalid VITE_SUPABASE_ANON_KEY (expected: anon public key starting with eyJ...)'
+  return 'Supabase env vars are not configured correctly'
+})()
+
+export let SUPABASE_INIT_ERROR = null
+
+if (!IS_SUPABASE_CONFIGURED && import.meta.env.DEV) {
+  console.warn('Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env (local) or in your hosting provider env vars.')
+}
+
+export let supabase
+try {
+  supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+} catch (error) {
+  SUPABASE_INIT_ERROR = error
+  console.error('Supabase client init failed:', error)
+  // Keep app running; auth/data calls will be blocked by IS_SUPABASE_READY checks.
+  supabase = createClient('https://placeholder.supabase.co', 'placeholder-key')
+}
+
+export const IS_SUPABASE_READY = IS_SUPABASE_CONFIGURED && !SUPABASE_INIT_ERROR
 
 // Database Schema Setup Instructions
 /*
