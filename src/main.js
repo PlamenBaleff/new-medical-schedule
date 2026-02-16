@@ -1,21 +1,34 @@
 // Main entry point for the application
 import { initRouter } from './services/router.js'
 import { initAuth } from './services/auth.js'
+import { supabase } from './services/supabase.js'
+import { loadAndApplyThemeForUser, THEME_DEFAULT } from './services/theme.js'
 
-// Load theme preference
-function loadTheme() {
-  const savedTheme = localStorage.getItem('theme') || 'light'
-  document.documentElement.setAttribute('data-theme', savedTheme)
+function applyDefaultThemeEarly() {
+  document.documentElement.setAttribute('data-theme', THEME_DEFAULT)
 }
 
 // Initialize the application
 async function init() {
   try {
-    // Load theme first
-    loadTheme()
+    // Apply default theme immediately (prevents unstyled flash)
+    applyDefaultThemeEarly()
     
     // Initialize authentication
     await initAuth()
+
+    // Load and apply theme for the current session user (per-profile)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      loadAndApplyThemeForUser(session?.user || null)
+    } catch {
+      loadAndApplyThemeForUser(null)
+    }
+
+    // Keep theme in sync when user logs in/out
+    supabase.auth.onAuthStateChange((_event, session) => {
+      loadAndApplyThemeForUser(session?.user || null)
+    })
     
     // Initialize router for page navigation
     initRouter()

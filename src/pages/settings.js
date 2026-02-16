@@ -5,6 +5,7 @@ import { eventBus, EVENTS } from '../services/eventBus.js'
 import { supabase } from '../services/supabase.js'
 import { navigateTo } from '../services/router.js'
 import { DOCTOR_AVATARS_BUCKET, renderDoctorAvatarImg } from '../utils/doctorAvatar.js'
+import { loadAndApplyThemeForUser, saveThemeForUser } from '../services/theme.js'
 
 export default function SettingsPage() {
   const container = document.createElement('div')
@@ -122,21 +123,18 @@ function setupSettingsHandlers(currentUser, container) {
   const themeLight = container.querySelector('#theme-light')
   const themeDark = container.querySelector('#theme-dark')
   
-  // Load saved theme
-  const savedTheme = localStorage.getItem('theme') || 'light'
+  // Load saved theme (per-profile) and apply
+  const savedTheme = loadAndApplyThemeForUser(currentUser)
   if (savedTheme === 'dark') {
     themeDark.checked = true
-    document.documentElement.setAttribute('data-theme', 'dark')
   } else {
     themeLight.checked = true
-    document.documentElement.setAttribute('data-theme', 'light')
   }
   
   // Handle theme change
   const handleThemeChange = (e) => {
     const theme = e.target.value
-    document.documentElement.setAttribute('data-theme', theme)
-    localStorage.setItem('theme', theme)
+    saveThemeForUser(currentUser, theme)
   }
   
   themeLight.addEventListener('change', handleThemeChange)
