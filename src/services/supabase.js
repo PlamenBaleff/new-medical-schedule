@@ -118,7 +118,7 @@ export async function getDoctorByEmail(email) {
 export async function getPatientByEmail(email) {
   const { data, error } = await supabase
     .from('patients')
-    .select('id, name, phone, email, created_at')
+    .select('*')
     .eq('email', email)
     .maybeSingle();
   if (error) throw error;
@@ -161,7 +161,7 @@ export async function createDoctor(doctorData) {
 export async function getPatient(id) {
   const { data, error } = await supabase
      .from('patients')
-     .select('id, name, phone, email, created_at')
+  .select('*')
     .eq('id', id)
     .single()
   
@@ -173,7 +173,7 @@ export async function createPatient(patientData) {
   const { data, error } = await supabase
      .from('patients')
      .insert([patientData])
-     .select('id, name, phone, email, created_at')
+  .select('*')
   
   if (error) throw error
   return data[0]
@@ -256,7 +256,7 @@ export async function updatePatient(email, patientData) {
     .from('patients')
     .update(patientData)
     .eq('email', email)
-    .select('id, name, phone, email, created_at')
+    .select('*')
   
   if (error) throw error
   return data[0]

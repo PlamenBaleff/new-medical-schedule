@@ -135,6 +135,37 @@ function setupSettingsHandlers(currentUser, container) {
   const handleThemeChange = (e) => {
     const theme = e.target.value
     saveThemeForUser(currentUser, theme)
+
+    // Persist to Supabase Auth metadata for cross-device sync (best-effort)
+    ;(async () => {
+      try {
+        const { error } = await supabase.auth.updateUser({ data: { theme } })
+        if (error) {
+          console.warn('Failed to persist theme to auth metadata:', error.message)
+        }
+      } catch (err) {
+        console.warn('Failed to persist theme to auth metadata:', err?.message || err)
+      }
+    })()
+
+    // Persist to Supabase profile for cross-device sync (best-effort)
+    ;(async () => {
+      let updated = null
+      try {
+        // Try doctor first, then patient
+        updated = await updateDoctor(currentUser.email, { theme })
+      } catch {
+        // ignore and try patient
+      }
+
+      if (updated) return
+
+      try {
+        await updatePatient(currentUser.email, { theme })
+      } catch {
+        // ignore (e.g., profile not created yet, or DB not migrated)
+      }
+    })()
   }
   
   themeLight.addEventListener('change', handleThemeChange)

@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS doctors (
   email TEXT UNIQUE NOT NULL,
   phone TEXT,
   address TEXT,
+  theme TEXT DEFAULT 'light',
   work_hours_from TIME DEFAULT '08:00',
   work_hours_to TIME DEFAULT '17:00',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -56,6 +57,7 @@ CREATE TABLE IF NOT EXISTS patients (
   name TEXT NOT NULL,
   phone TEXT,
   email TEXT UNIQUE NOT NULL,
+  theme TEXT DEFAULT 'light',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
