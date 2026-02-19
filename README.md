@@ -17,13 +17,17 @@
 ### 3. Функции за лекари
 - ✅ Автоматично добавяне в списъка след регистрация
 - ✅ Задаване на работни часове
-- ✅ Преглед на собствения график и записани пациенти
+- ✅ Преглед на графиците на всички лекари
+- ✅ Качване на профилна снимка (аватар)
+- ✅ Преглед на детайли за собствения си график, както и име на пациента и оплакванията му за всеки записан час
+- ✅ Избор на тема на приложението (светла/тъмна) от Settings
 
 ### 4. Функции за пациенти
 - ✅ Преглед на графици на всички лекари
 - ✅ Избор на лекар и свободен час
 - ✅ Записване на час с описание на оплакванията
 - ✅ Преглед на собствените записани часове
+- ✅ Избор на тема на приложението (светла/тъмна) от Settings
 
 ## Структура на проекта
 
@@ -58,7 +62,7 @@ npm install
 
 1. Създайте проект на [supabase.com](https://supabase.com)
 2. Копирайте вашия Supabase URL и Anonymous Key
-3. Създайте `.env` файл базиран на `.env.example`:
+3. Създайте `.env` файл в root директорията на проекта:
 
 ```bash
 VITE_SUPABASE_URL=your_supabase_url
@@ -111,6 +115,8 @@ npm run dev
 3. Кликнете на лекар за да видите неговия график
 4. Календарът показва свободни (зелени) и заети (червени) часове
 
+Съвет: Ако приложението няма връзка към Supabase (липсва/грешен URL/Key), отидете в **Settings** страницата и проверете конфигурацията.
+
 ### За регистрация като лекар:
 1. Натиснете "Регистрация като лекар"
 2. Попълнете формата с вашите данни
@@ -161,43 +167,39 @@ npm run build
 npm run preview
 ```
 
-The application will open at `http://localhost:5173`
+Приложението ще се отвори на `http://localhost:5173`
 
-## Building for Production
+## Build за production (обобщение)
 
 ```bash
 npm run build
 ```
 
-The built files will be in the `dist/` directory.
+Готовите файлове ще бъдат в директорията `dist/`.
 
-## Features
+## Функционалности (обобщение)
 
-- **Multi-page Navigation**: Hash-based routing with separate page components
-- **Responsive Design**: Mobile-friendly layout with Bootstrap
-- **Modular Architecture**: Separated concerns (pages, services, components)
-- **Supabase Integration**: Ready for database and authentication setup
-- **Doctor Management**: View and manage medical staff
-- **Schedule Management**: Display and manage doctor schedules
-- **Settings Page**: Configure Supabase credentials
+- **Навигация между страници**: Hash-базирано routing решение със страници (pages)
+- **Responsive дизайн**: Mobile-friendly UI с Bootstrap
+- **Модулна архитектура**: Разделение по отговорности (pages, services, components)
+- **Supabase интеграция**: База данни + Authentication
+- **Лекари**: Преглед и управление на лекари
+- **Графици**: Преглед на свободни/заети часове
+- **Settings**: Конфигурация на Supabase credentials
 
-## Navigation
+## Навигация
 
-- **Home** (`#home`) - Welcome page with quick links
-- **Schedule** (`#schedule`) - Doctor schedule management
-- **Doctors** (`#doctors`) - Medical staff directory
-- **Settings** (`#settings`) - Application configuration
+- **Home** (`#home`) - Начална страница
+- **Schedule** (`#schedule`) - График на лекарите
+- **Doctors** (`#doctors`) - Списък с лекари
+- **Settings** (`#settings`) - Настройки на приложението
 
-## Future Development
+## Идеи за бъдещо развитие
 
-- [ ] Implement Supabase database tables (doctors, schedules, appointments)
-- [ ] Add user authentication (login/register)
-- [ ] Create appointment booking system
-- [ ] Add form validation and error handling
-- [ ] Implement data persistence to Supabase
-- [ ] Add notification system
-- [ ] Create admin dashboard
-- [ ] Add print/export functionality
+- [ ] По-строга валидация на формите и по-ясни съобщения за грешки
+- [ ] Нотификации (напр. имейл/вътрешни известия) за записани/отменени часове
+- [ ] Админ панел за управление на лекари и потребители
+- [ ] Експорт/принт на график/часове
 
 ## Contributing
 
