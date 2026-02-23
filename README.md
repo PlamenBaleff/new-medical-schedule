@@ -61,6 +61,29 @@ src/
 - **Package Manager**: npm
 - **Node.js**: v16+
 
+## Архитектура
+
+- **Frontend (SPA)**: Vanilla JS (ES modules) + Bootstrap 5, билднато с Vite.
+- **Routing**: клиентски router върху **History API** (URL пътища като `/auth`, `/home` и т.н.). За Netlify има SPA redirect fallback в `netlify.toml` и `public/_redirects`.
+- **Auth**: Supabase Authentication (сесии/логин/регистрация).
+- **Database**: Supabase Postgres + Row Level Security (RLS) политики за контрол на достъпа.
+- **Admin операции (destructive)**: Supabase Edge Function за изтриване на потребители (вкл. почистване на auth акаунти при изтриване на профили).
+
+## Ключови папки и файлове
+
+- `index.html` — shell на приложението + navbar + зареждане на `src/main.js`.
+- `src/main.js` — инициализация (auth, theme sync, router).
+- `src/services/router.js` — SPA навигация (History API) и рендер на страниците.
+- `src/services/supabase.js` — Supabase client + helper заявки към таблиците.
+- `src/services/auth.js` — логика за вход/регистрация и работа със сесии.
+- `src/services/theme.js` — светла/тъмна тема + запис/зареждане на предпочитания.
+- `src/pages/` — страници (UI + page-level логика): `auth.js`, `home.js`, `schedule.js`, `doctors.js`, `settings.js`.
+- `src/components/` — преизползваеми UI компоненти (напр. календар).
+- `src/styles/` — CSS стилове.
+- `supabase/migrations/` — SQL миграции/скриптове за schema, RLS и seed данни.
+- `supabase/functions/delete-user/index.ts` — Edge Function за админ изтриване.
+- `netlify.toml` и `public/_redirects` — настройки за deploy и SPA fallback.
+
 ## Инструкции за настройка
 
 ### 1. Инсталиране на зависимости
@@ -243,7 +266,7 @@ npm run build
 
 ## Функционалности (обобщение)
 
-- **Навигация между страници**: Hash-базирано routing решение със страници (pages)
+- **Навигация между страници**: SPA routing върху History API със страници (pages)
 - **Responsive дизайн**: Mobile-friendly UI с Bootstrap
 - **Модулна архитектура**: Разделение по отговорности (pages, services, components)
 - **Supabase интеграция**: База данни + Authentication
@@ -254,10 +277,10 @@ npm run build
 
 ## Навигация
 
-- **Home** (`#home`) - Начална страница
-- **Schedule** (`#schedule`) - График на лекарите
-- **Doctors** (`#doctors`) - Списък с лекари
-- **Settings** (`#settings`) - Настройки на приложението
+- **Auth** (`/auth`) - Вход / Регистрация
+- **Home** (`/home`) - Начална страница
+- **Doctors** (`/doctors`) - Списък с лекари
+- **Settings** (`/settings`) - Настройки на приложението
 
 ## Идеи за бъдещо развитие
 
