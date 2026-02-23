@@ -95,28 +95,81 @@ npm run dev
 
 ## База данни схема
 
-### Таблица: doctors
-- `id` - UUID (primary key)
-- `name` - Име на лекаря
-- `specialty` - Специалност
-- `email` - Email (unique)
-- `work_hours_from` - Начало на работния ден
-- `work_hours_to` - Край на работния ден
+### ER диаграма (Mermaid)
 
-### Таблица: patients
-- `id` - UUID (primary key)
-- `name` - Име на пациента
-- `phone` - Телефон
-- `email` - Email (unique)
+```mermaid
+erDiagram
+	AUTH_USERS {
+		uuid id PK
+		string email
+		timestamp created_at
+	}
 
-### Таблица: appointments
-- `id` - UUID (primary key)
-- `doctor_id` - Референция към лекар
-- `patient_id` - Референция към пациент
-- `appointment_date` - Дата на прегледа
-- `appointment_time` - Час на прегледа
-- `complaints` - Оплаквания на пациента
-- `status` - Статус (scheduled, completed, cancelled)
+	DOCTORS {
+		uuid id PK
+		string name
+		string specialty
+		string phone
+		string address
+		string email UK
+		string theme
+		time work_hours_from
+		time work_hours_to
+		string avatar_path
+		timestamp avatar_updated_at
+		timestamp created_at
+	}
+
+	PATIENTS {
+		uuid id PK
+		string name
+		string phone
+		string email UK
+		string theme
+		timestamp created_at
+	}
+
+	APPOINTMENTS {
+		uuid id PK
+		uuid doctor_id FK
+		uuid patient_id FK
+		date appointment_date
+		time appointment_time
+		string complaints
+		string status
+		timestamp created_at
+	}
+
+	ADMINS {
+		uuid id PK
+		string email UK
+		string name
+		boolean is_active
+		timestamp created_at
+	}
+
+	DOCTORS ||--o{ APPOINTMENTS : has
+	PATIENTS ||--o{ APPOINTMENTS : books
+	AUTH_USERS ||--o| DOCTORS : owns
+	AUTH_USERS ||--o| PATIENTS : owns
+	AUTH_USERS ||--o| ADMINS : owns
+```
+
+> Бележка: `AUTH_USERS` е таблицата `auth.users` на Supabase. В приложението профилите `doctors`/`patients`/`admins` се асоциират по `email` (няма FK към `auth.users`).
+
+### Таблици (накратко)
+
+#### doctors
+- Профили на лекари + работни часове + тема и (по желание) аватар.
+
+#### patients
+- Профили на пациенти + тема.
+
+#### appointments
+- Записани часове. Има FK към `doctors(id)` и `patients(id)` и уникалност по (`doctor_id`, `appointment_date`, `appointment_time`).
+
+#### admins
+- Списък с активни администратори (активирани по `email`, `is_active = true`).
 
 ## Как да използвате приложението
 
