@@ -8,8 +8,10 @@ echo "========================================"
 echo ""
 
 # Check if SQL file exists
-if [ ! -f "supabase-setup.sql" ]; then
-    echo "Error: supabase-setup.sql not found!"
+SQL_FILE="supabase/migrations/supabase-setup.sql"
+
+if [ ! -f "$SQL_FILE" ]; then
+    echo "Error: $SQL_FILE not found!"
     exit 1
 fi
 
@@ -20,7 +22,7 @@ echo "1. Go to https://supabase.com and log in to your project"
 echo ""
 echo "2. Navigate to 'SQL Editor'"
 echo ""
-echo "3. Copy ALL the SQL from 'supabase-setup.sql' file"
+echo "3. Copy ALL the SQL from '$SQL_FILE' file"
 echo ""
 echo "4. Paste it into the SQL Editor and execute it"
 echo ""

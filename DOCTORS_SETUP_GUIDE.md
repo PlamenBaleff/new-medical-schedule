@@ -13,7 +13,7 @@
    - Щракнете на "New Query"
 
 3. **Копирайте SQL командите**
-   - Отворете файла `INSERT_DOCTORS.sql` от този проект
+   - Отворете файла `supabase/migrations/INSERT_DOCTORS.sql` от този проект
    - Копирайте целия SQL код
    - Поставете го в Supabase SQL Editor
 
@@ -110,8 +110,8 @@ SELECT name, specialty, email, phone FROM doctors ORDER BY specialty, name;
 
 Проектът съдържа следните файлове с информация за лекарите:
 
-1. **INSERT_DOCTORS.sql** - SQL команди за добавяне в Supabase
-2. **supabase-setup.sql** - Пълна SQL конфигурация на базата данни (с нови лекари)
+1. **supabase/migrations/INSERT_DOCTORS.sql** - SQL команди за добавяне в Supabase
+2. **supabase/migrations/supabase-setup.sql** - Пълна SQL конфигурация на базата данни (с нови лекари)
 3. **DOCTORS_DATA.md** - Детайлна информация за всеки лекар
 4. **doctors_data.json** - JSON структура на лекарските данни
 

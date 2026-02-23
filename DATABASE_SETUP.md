@@ -13,7 +13,7 @@
 
 ### 1. Копирайте SQL скриптовете
 
-Отворете файла `supabase-setup.sql` в проекта. Той съдържа всички SQL команди, които са ви нужни.
+Отворете файла `supabase/migrations/supabase-setup.sql` в проекта. Той съдържа всички SQL команди, които са ви нужни.
 
 ### 2. Изпълнете SQL скриптовете в Supabase
 
@@ -21,10 +21,10 @@
 2. Отворете вашия проект **bfaheqlcyrukehxodtds**
 3. Отидете на **SQL Editor** (ляво меню)
 4. Кликнете **+ New Query**
-5. Копирайте содържанието от `supabase-setup.sql`
+5. Копирайте съдържанието от `supabase/migrations/supabase-setup.sql`
 6. Натиснете **Run** (или Ctrl+Enter)
 
-**Забележка:** Всяко изпълнение на `supabase-setup.sql` ще:
+**Забележка:** Всяко изпълнение на `supabase/migrations/supabase-setup.sql` ще:
 - Създаде таблиците `doctors`, `patients`, `appointments`, `admins`
 - Включи Row Level Security (RLS) за защита на данните
 - Вмъкне демо лекари (ако не съществуват)
@@ -34,7 +34,7 @@
 
 За да работят профилните снимки на лекари (качване/изтриване от **Settings**), изпълнете и скрипта:
 
-- `DOCTOR_AVATARS_SETUP.sql`
+- `supabase/migrations/DOCTOR_AVATARS_SETUP.sql`
 
 Той:
 - добавя `avatar_path` и `avatar_updated_at` към таблицата `doctors`
