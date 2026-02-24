@@ -2,11 +2,12 @@
 import { initRouter } from './services/router.js'
 import { initAuth } from './services/auth.js'
 import { supabase, getDoctorByEmail, getPatientByEmail, IS_SUPABASE_READY } from './services/supabase.js'
-import { loadAndApplyThemeForUser, saveThemeForUser } from './services/theme.js'
+import { loadAndApplyThemeForUser, saveThemeForUser, THEME_DEFAULT } from './services/theme.js'
 
 function applyDefaultThemeEarly() {
-  // Apply last-saved theme immediately (fallback to default inside theme service)
-  loadAndApplyThemeForUser(null)
+  // Logged-out state should always be the default (light) theme.
+  // For a logged-in user, the real per-profile theme is applied after session load.
+  saveThemeForUser(null, THEME_DEFAULT)
 }
 
 async function syncThemeFromSupabaseProfile(sessionUser) {
@@ -57,17 +58,27 @@ async function init() {
     // Load and apply theme for the current session user (per-profile)
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      loadAndApplyThemeForUser(session?.user || null)
-      // Cross-device sync (best-effort): prefer theme saved in Supabase profile
-      syncThemeFromSupabaseProfile(session?.user || null)
+      if (session?.user) {
+        loadAndApplyThemeForUser(session.user)
+        // Cross-device sync (best-effort): prefer theme saved in Supabase profile
+        syncThemeFromSupabaseProfile(session.user)
+      } else {
+        // Ensure logged-out view is always light.
+        saveThemeForUser(null, THEME_DEFAULT)
+      }
     } catch {
-      loadAndApplyThemeForUser(null)
+      saveThemeForUser(null, THEME_DEFAULT)
     }
 
     // Keep theme in sync when user logs in/out
     supabase.auth.onAuthStateChange((_event, session) => {
-      loadAndApplyThemeForUser(session?.user || null)
-      syncThemeFromSupabaseProfile(session?.user || null)
+      if (session?.user) {
+        loadAndApplyThemeForUser(session.user)
+        syncThemeFromSupabaseProfile(session.user)
+      } else {
+        // On logout, do NOT keep the last user's theme.
+        saveThemeForUser(null, THEME_DEFAULT)
+      }
     })
     
     // Initialize router for page navigation

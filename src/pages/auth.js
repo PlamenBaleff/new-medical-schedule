@@ -320,8 +320,8 @@ async function registerDoctor() {
   const specialty = document.getElementById('doctor-specialty').value
   const phone = document.getElementById('doctor-phone').value
   const address = document.getElementById('doctor-address').value
-  const email = document.getElementById('doctor-email').value
-  const password = document.getElementById('doctor-password').value
+  const email = (document.getElementById('doctor-email').value || '').trim().toLowerCase()
+  const password = (document.getElementById('doctor-password').value || '').trim()
   const hoursFrom = document.getElementById('doctor-hours-from').value
   const hoursTo = document.getElementById('doctor-hours-to').value
   const wantsAdmin = document.getElementById('doctor-request-admin').checked
@@ -340,6 +340,10 @@ async function registerDoctor() {
   }
 
   try {
+    if (!email || !password) {
+      alert('Моля, въведете email и парола.')
+      return
+    }
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: email,
       password: password
@@ -386,8 +390,6 @@ async function registerDoctor() {
       throw error
     }
 
-    await supabase.auth.signOut()
-
     if (wantsAdmin) {
       const { error: requestError } = await supabase
         .from('admin_requests')
@@ -405,6 +407,8 @@ async function registerDoctor() {
     } else {
       alert('Регистрацията е успешна! Моля, влезте в системата.')
     }
+
+    await supabase.auth.signOut()
     clearPendingProfile(email)
     window.showLoginForm()
   } catch (error) {
@@ -420,8 +424,8 @@ async function registerPatient() {
   }
   const name = document.getElementById('patient-name').value
   const phone = document.getElementById('patient-phone').value
-  const email = document.getElementById('patient-email').value
-  const password = document.getElementById('patient-password').value
+  const email = (document.getElementById('patient-email').value || '').trim().toLowerCase()
+  const password = (document.getElementById('patient-password').value || '').trim()
   const pendingProfile = {
     email,
     user_type: 'patient',
@@ -433,6 +437,10 @@ async function registerPatient() {
   }
 
   try {
+    if (!email || !password) {
+      alert('Моля, въведете email и парола.')
+      return
+    }
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: email,
       password: password
@@ -477,10 +485,14 @@ async function login() {
     alert('Supabase не е конфигуриран или стойностите са невалидни.\n\nNetlify → Site settings → Environment variables:\n- VITE_SUPABASE_URL = https://<project-ref>.supabase.co\n- VITE_SUPABASE_ANON_KEY = (anon public key, започва с eyJ...)\n\nСлед това: Trigger deploy → Clear cache and deploy.')
     return
   }
-  const email = document.getElementById('login-email').value
-  const password = document.getElementById('login-password').value
+  const email = (document.getElementById('login-email').value || '').trim().toLowerCase()
+  const password = (document.getElementById('login-password').value || '').trim()
 
   try {
+    if (!email || !password) {
+      alert('Моля, въведете email и парола.')
+      return
+    }
     const { data, error } = await supabase.auth.signInWithPassword({
       email: email,
       password: password
@@ -501,7 +513,11 @@ async function login() {
       alert('Грешка при вход: Имейлът не е потвърден. Потвърдете регистрацията от писмото и опитайте отново.')
       return
     }
-    alert('Грешка при вход: ' + error.message)
+    if (String(error.message || '').toLowerCase().includes('invalid login credentials')) {
+      alert('Грешка при вход: Невалиден email или парола. Ако току-що сте се регистрирали, проверете и потвърдете имейла си (възможно е входът да е блокиран до потвърждение).')
+      return
+    }
+    alert('Грешка при вход: ' + (error.message || 'Непозната грешка'))
   }
 }
 

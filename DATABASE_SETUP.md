@@ -15,6 +15,10 @@
 
 Отворете файла `supabase/migrations/supabase-setup.sql` в проекта. Той съдържа всички SQL команди, които са ви нужни.
 
+За workflow-а със заявки за админ (таблица `admin_requests`) изпълнете и:
+
+- `supabase/migrations/ADD_ADMIN_REQUESTS_TABLE_AND_RLS.sql`
+
 ### 2. Изпълнете SQL скриптовете в Supabase
 
 1. Отидете на [supabase.com](https://supabase.com)
@@ -29,6 +33,8 @@
 - Включи Row Level Security (RLS) за защита на данните
 - Вмъкне демо лекари (ако не съществуват)
 - Даде администраторски права на `ufopjb@abv.bg`
+
+**Важно:** За да може лекар да подаде заявка за админ при регистрация (чекбокса "Желая администраторски достъп"), трябва да е изпълнен и скриптът `supabase/migrations/ADD_ADMIN_REQUESTS_TABLE_AND_RLS.sql`.
 
 ### 2.1 Профилни снимки на лекари (Storage + RLS)
 
